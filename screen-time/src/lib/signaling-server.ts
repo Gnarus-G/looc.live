@@ -1,4 +1,4 @@
-const SIGNALING_SERVER_ENPIONT = "http://localhost:8080";
+const SIGNALING_SERVER_ENPIONT = import.meta.env.VITE_SIGNALING_SERVER_ENPIONT;
 
 export default class RTCSignalingServer {
   eventsSrc: EventSource;
