@@ -1,7 +1,7 @@
 {
-  "name": "server",
+  "name": "signaling-server",
   "version": "0.0.1",
-  "description": "",
+  "description": "A REST api for signaling for a webRTC app.",
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --debug --emit .",

@@ -2,7 +2,7 @@
   import { onDestroy, onMount } from "svelte";
   import RTCSignalingServer from "./lib/signaling-server";
 
-  let callId = "love";
+  let callId = "looc";
   let pc = new RTCPeerConnection();
   let signaling = new RTCSignalingServer(callId, pc);
 
