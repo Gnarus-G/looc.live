@@ -26,8 +26,7 @@ export default function manager(
       signaling.addAnswerIceCandidates(event.candidate);
     };
 
-    const offer = await signaling.getOffer();
-    pc.setRemoteDescription(new RTCSessionDescription(offer));
+    pc.setRemoteDescription(await signaling.getOffer());
 
     console.info("creating an answer");
     const sdpAnswer = await pc.createAnswer();

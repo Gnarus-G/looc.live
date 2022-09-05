@@ -2,6 +2,8 @@ const SIGNALING_SERVER_ENPIONT = import.meta.env.VITE_SIGNALING_SERVER_ENPIONT;
 
 export default class RTCSignalingServer {
   eventsSrc: EventSource;
+  answerListener?: (e: MessageEvent) => void;
+  iceCandidateListener?: (e: MessageEvent) => void;
 
   constructor(private callId: string) {
     this.eventsSrc = new EventSource(
@@ -20,10 +22,12 @@ export default class RTCSignalingServer {
     });
   }
 
-  async getOffer(): Promise<RTCSessionDescriptionInit> {
-    return fetch(SIGNALING_SERVER_ENPIONT + "/offer/" + this.callId).then((r) =>
-      r.json()
-    );
+  async getOffer(): Promise<RTCSessionDescription> {
+    const sdp: RTCSessionDescriptionInit = await fetch(
+      SIGNALING_SERVER_ENPIONT + "/offer/" + this.callId
+    ).then((r) => r.json());
+
+    return new RTCSessionDescription(sdp);
   }
 
   async answer(sdpAnswer: RTCSessionDescriptionInit) {
@@ -61,21 +65,35 @@ export default class RTCSignalingServer {
   }
 
   onAnswer(listener: (a: RTCSessionDescription) => void) {
-    this.eventsSrc.addEventListener("answer", ({ data }) => {
+    if (this.answerListener) {
+      this.eventsSrc.removeEventListener("answer", this.answerListener);
+    }
+    this.answerListener = ({ data }) => {
       const sdp = new RTCSessionDescription(JSON.parse(data));
       console.info("recieved answer", sdp);
       listener(sdp);
-    });
+    };
+    this.eventsSrc.addEventListener("answer", this.answerListener);
   }
 
   onNewIceCandidate(
     type: "offer" | "answer",
     listener: (i: RTCIceCandidate) => void
   ) {
-    this.eventsSrc.addEventListener(`${type}Candidate`, ({ data }) => {
+    if (this.iceCandidateListener) {
+      this.eventsSrc.removeEventListener(
+        `${type}Candidate`,
+        this.iceCandidateListener
+      );
+    }
+    this.iceCandidateListener = ({ data }) => {
       const ice = new RTCIceCandidate(JSON.parse(data));
       console.info("recieved", type, "ice candidate", ice);
       listener(ice);
-    });
+    };
+    this.eventsSrc.addEventListener(
+      `${type}Candidate`,
+      this.iceCandidateListener
+    );
   }
 }
