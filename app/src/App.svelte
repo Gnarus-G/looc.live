@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onDestroy, onMount } from "svelte";
   import manager from "./lib/manage-call";
   import RTCSignalingServer from "./lib/signaling-server";
 
@@ -23,6 +22,21 @@
   let remoteStream: MediaStream;
   let localVideo: HTMLVideoElement;
   let remoteVideo: HTMLVideoElement;
+
+  function createPeerStream(pc: RTCPeerConnection) {
+    remoteStream = new MediaStream();
+
+    pc.ontrack = (event) => {
+      console.info("on remote track", event.streams);
+      const stream = event.streams[0];
+      console.info("on remote track", stream.getTracks());
+      event.streams[0].getTracks().forEach((t) => {
+        remoteStream.addTrack(t);
+      });
+    };
+
+    remoteVideo.srcObject = remoteStream;
+  }
 
   function startCall() {
     if (callId) {
@@ -49,53 +63,29 @@
     });
   }
 
-  onMount(() => {
-    navigator.mediaDevices
-      .getUserMedia({
-        video: true,
+  async function turnOnMic() {
+    try {
+      localStream = await navigator.mediaDevices.getUserMedia({
         audio: true,
-      })
-      .then((stream) => {
-        localStream = stream;
-        localVideo.srcObject = stream;
-      })
-      .catch((e) => {
-        console.error(e);
       });
-  });
-
-  function createPeerStream(pc: RTCPeerConnection) {
-    remoteStream = new MediaStream();
-
-    pc.ontrack = (event) => {
-      console.info("track", event);
-      event.streams[0].getTracks().forEach((t) => {
-        remoteStream.addTrack(t);
-      });
-    };
-
-    remoteVideo.srcObject = remoteStream;
+      localVideo.srcObject = localStream;
+    } catch (e) {
+      console.error(e);
+    }
   }
-
-  onDestroy(() => {
-    localStream?.getTracks().forEach((t) => t.stop());
-    remoteStream?.getTracks().forEach((t) => t.stop());
-    localVideo.srcObject = null;
-    remoteVideo.srcObject = null;
-    pc.close();
-  });
 </script>
 
 <main>
   <div class="peers">
-    <video bind:this={localVideo} autoplay playsinline muted>
+    <video bind:this={localVideo} autoplay playsinline controls>
       <track kind="captions" />
     </video>
-    <video bind:this={remoteVideo} autoplay playsinline muted>
+    <video bind:this={remoteVideo} autoplay playsinline controls>
       <track kind="captions" />
     </video>
   </div>
   <input type="text" bind:value={callId} />
+  <button on:click={turnOnMic}>Mic</button>
   {#if isAnswerer}
     <button on:click={answerCall}>Answer</button>
   {:else}
