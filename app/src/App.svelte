@@ -18,6 +18,7 @@
   let pc = new RTCPeerConnection(iceServersConfig);
 
   let callId = "";
+  let connected = false;
   let localStream: MediaStream;
   let remoteStream: MediaStream;
   let localVideo: HTMLVideoElement;
@@ -30,15 +31,15 @@
       console.info("on remote track", event.streams);
       const stream = event.streams[0];
       console.info("on remote track", stream.getTracks());
+      connected = true;
       event.streams[0].getTracks().forEach((t) => {
         remoteStream.addTrack(t);
       });
     };
-
-    remoteVideo.srcObject = remoteStream;
   }
 
   function startCall() {
+    connected = false;
     if (callId) {
       let signaling = new RTCSignalingServer(callId);
       pc = new RTCPeerConnection(iceServersConfig);
@@ -48,12 +49,17 @@
   }
 
   function answerCall() {
+    connected = false;
     if (callId) {
       let signaling = new RTCSignalingServer(callId);
       pc = new RTCPeerConnection(iceServersConfig);
       createPeerStream(pc);
       manager(signaling, pc).answer();
     }
+  }
+
+  $: {
+    if (connected && remoteVideo) remoteVideo.srcObject = remoteStream;
   }
 
   $: {
@@ -80,9 +86,11 @@
     <video bind:this={localVideo} autoplay playsinline controls>
       <track kind="captions" />
     </video>
-    <video bind:this={remoteVideo} autoplay playsinline controls>
-      <track kind="captions" />
-    </video>
+    {#if connected}
+      <video bind:this={remoteVideo} autoplay playsinline controls>
+        <track kind="captions" />
+      </video>
+    {/if}
   </div>
   <input type="text" bind:value={callId} />
   <button on:click={turnOnMic}>Mic</button>
