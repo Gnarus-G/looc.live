@@ -7,14 +7,13 @@ export default function manager(
   async function call() {
     // save my ice candidates
     pc.onicecandidate = (event) => {
-      console.info("offer candidates", event.candidate);
       if (!event.candidate) return;
       signaling.addOfferIceCandidates(event.candidate);
     };
 
     // create an offer
-    const sdpOffer = await pc.createOffer();
     console.info("creating an offer");
+    const sdpOffer = await pc.createOffer();
     await pc.setLocalDescription(sdpOffer);
     await signaling.call(sdpOffer);
 
@@ -28,7 +27,6 @@ export default function manager(
   async function answer() {
     // save my answer ice candidates
     pc.onicecandidate = (event) => {
-      console.info("offer candidates", event.candidate);
       if (!event.candidate) return;
       signaling.addAnswerIceCandidates(event.candidate);
     };
@@ -36,6 +34,7 @@ export default function manager(
     const offer = await signaling.getOffer();
     pc.setRemoteDescription(new RTCSessionDescription(offer));
 
+    console.info("creating an answer");
     const sdpAnswer = await pc.createAnswer();
     await pc.setLocalDescription(sdpAnswer);
 

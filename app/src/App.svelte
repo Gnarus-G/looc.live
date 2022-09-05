@@ -4,8 +4,7 @@
   import RTCSignalingServer from "./lib/signaling-server";
 
   const isAnswerer = window.location.pathname.includes("answer");
-
-  let pc = new RTCPeerConnection({
+  const iceServersConfig = {
     iceServers: [
       {
         urls: [
@@ -15,7 +14,9 @@
       },
     ],
     iceCandidatePoolSize: 10,
-  });
+  };
+
+  let pc = new RTCPeerConnection(iceServersConfig);
 
   let callId = "";
   let localStream: MediaStream;
@@ -26,6 +27,8 @@
   function startCall() {
     if (callId) {
       let signaling = new RTCSignalingServer(callId);
+      pc = new RTCPeerConnection(iceServersConfig);
+      createPeerStream(pc);
       manager(signaling, pc).call();
     }
   }
@@ -33,8 +36,17 @@
   function answerCall() {
     if (callId) {
       let signaling = new RTCSignalingServer(callId);
+      pc = new RTCPeerConnection(iceServersConfig);
+      createPeerStream(pc);
       manager(signaling, pc).answer();
     }
+  }
+
+  $: {
+    console.info("resetting local peer");
+    localStream?.getTracks().forEach((t) => {
+      pc.addTrack(t, localStream);
+    });
   }
 
   onMount(() => {
@@ -46,36 +58,36 @@
       .then((stream) => {
         localStream = stream;
         localVideo.srcObject = stream;
-        remoteStream = new MediaStream();
-
-        localStream.getTracks().forEach((t) => {
-          pc.addTrack(t, localStream);
-        });
-
-        pc.ontrack = (event) => {
-          event.streams[0].getTracks().forEach((t) => {
-            remoteStream.addTrack(t);
-          });
-        };
-
-        pc.onconnectionstatechange = () => {
-          pc.connectionState === "connected";
-          remoteVideo.srcObject = remoteStream;
-        };
       })
       .catch((e) => {
         console.error(e);
       });
   });
 
+  function createPeerStream(pc: RTCPeerConnection) {
+    remoteStream = new MediaStream();
+
+    pc.ontrack = (event) => {
+      console.info("track", event);
+      event.streams[0].getTracks().forEach((t) => {
+        remoteStream.addTrack(t);
+      });
+    };
+
+    remoteVideo.srcObject = remoteStream;
+  }
+
   onDestroy(() => {
     localStream?.getTracks().forEach((t) => t.stop());
+    remoteStream?.getTracks().forEach((t) => t.stop());
+    localVideo.srcObject = null;
+    remoteVideo.srcObject = null;
     pc.close();
   });
 </script>
 
 <main>
-  <div>
+  <div class="peers">
     <video bind:this={localVideo} autoplay playsinline muted>
       <track kind="captions" />
     </video>
@@ -102,10 +114,11 @@
     align-items: center;
     box-sizing: border-box;
   }
-  div {
+  div.peers {
     display: flex;
     flex-wrap: wrap;
     gap: 1rem;
+    width: 100%;
     justify-content: center;
   }
   video {

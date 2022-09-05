@@ -38,15 +38,16 @@ export default class RTCSignalingServer {
   }
 
   async addOfferIceCandidates(ic: RTCIceCandidate) {
+    console.info("offer ice candidates", ic.toJSON());
     return this.addIceCandidates(ic, "offer");
   }
 
   async addAnswerIceCandidates(ic: RTCIceCandidate) {
+    console.info("answer ice candidates", ic.toJSON());
     return this.addIceCandidates(ic, "answer");
   }
 
   private async addIceCandidates(c: RTCIceCandidate, type: "offer" | "answer") {
-    console.info("ice candidates for me", c.toJSON());
     await fetch(
       SIGNALING_SERVER_ENPIONT + `/${type}/${this.callId}/candidate`,
       {
@@ -73,7 +74,7 @@ export default class RTCSignalingServer {
   ) {
     this.eventsSrc.addEventListener(`${type}Candidate`, ({ data }) => {
       const ice = new RTCIceCandidate(JSON.parse(data));
-      console.info("recieved ice candidate", type, ice);
+      console.info("recieved", type, "ice candidate", ice);
       listener(ice);
     });
   }
