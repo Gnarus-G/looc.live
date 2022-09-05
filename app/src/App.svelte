@@ -5,14 +5,27 @@
 
   const isAnswerer = window.location.pathname.includes("answer");
 
-  let callId = "looc";
   let pc = new RTCPeerConnection();
-  let signaling = new RTCSignalingServer(callId);
-  const { call, answer } = manager(signaling, pc);
 
+  let callId = "";
   let localStream: MediaStream;
+  let remoteStream: MediaStream;
   let localVideo: HTMLVideoElement;
   let remoteVideo: HTMLVideoElement;
+
+  function startCall() {
+    if (callId) {
+      let signaling = new RTCSignalingServer(callId);
+      manager(signaling, pc).call();
+    }
+  }
+
+  function answerCall() {
+    if (callId) {
+      let signaling = new RTCSignalingServer(callId);
+      manager(signaling, pc).answer();
+    }
+  }
 
   onMount(() => {
     navigator.mediaDevices
@@ -23,7 +36,7 @@
       .then((stream) => {
         localStream = stream;
         localVideo.srcObject = stream;
-        let remoteStream = new MediaStream();
+        remoteStream = new MediaStream();
 
         localStream.getTracks().forEach((t) => {
           pc.addTrack(t, localStream);
@@ -35,7 +48,10 @@
           });
         };
 
-        remoteVideo.srcObject = remoteStream;
+        pc.onconnectionstatechange = () => {
+          pc.connectionState === "connected";
+          remoteVideo.srcObject = remoteStream;
+        };
       })
       .catch((e) => {
         console.error(e);
@@ -59,9 +75,9 @@
   </div>
   <input type="text" bind:value={callId} />
   {#if isAnswerer}
-    <button on:click={answer}>Answer</button>
+    <button on:click={answerCall}>Answer</button>
   {:else}
-    <button on:click={call}>Call</button>
+    <button on:click={startCall}>Start call</button>
   {/if}
 </main>
 
@@ -78,8 +94,12 @@
   }
   div {
     display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    justify-content: center;
   }
   video {
+    background-color: #4a4a4a;
     border-radius: 0.2rem;
     width: max(300px, 20%);
   }

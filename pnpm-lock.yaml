@@ -28,7 +28,7 @@ importers:
     devDependencies:
       '@sveltejs/vite-plugin-svelte': 1.0.4_svelte@3.50.0+vite@3.0.9
       '@tsconfig/svelte': 3.0.0
-      eslint-plugin-svelte3: 4.0.0_svelte@3.50.0
+      eslint-plugin-svelte3: 4.0.0_sc4laremvjv7grvyfrqmp3xv5q
       svelte: 3.50.0
       svelte-check: 2.9.0_svelte@3.50.0
       svelte-preprocess: 4.10.7_25vz5gl6ox2pgh3uo5abz3kk6y
@@ -953,12 +953,13 @@ packages:
     engines: {node: '>=10'}
     dev: true
 
-  /eslint-plugin-svelte3/4.0.0_svelte@3.50.0:
+  /eslint-plugin-svelte3/4.0.0_sc4laremvjv7grvyfrqmp3xv5q:
     resolution: {integrity: sha512-OIx9lgaNzD02+MDFNLw0GEUbuovNcglg+wnd/UY0fbZmlQSz7GlQiQ1f+yX0XvC07XPcDOnFcichqI3xCwp71g==}
     peerDependencies:
       eslint: '>=8.0.0'
       svelte: ^3.2.0
     dependencies:
+      eslint: 8.23.0
       svelte: 3.50.0
     dev: true
 
