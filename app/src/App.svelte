@@ -5,7 +5,17 @@
 
   const isAnswerer = window.location.pathname.includes("answer");
 
-  let pc = new RTCPeerConnection();
+  let pc = new RTCPeerConnection({
+    iceServers: [
+      {
+        urls: [
+          "stun:stun1.l.google.com:19302",
+          "stun:stun2.l.google.com:19302",
+        ],
+      },
+    ],
+    iceCandidatePoolSize: 10,
+  });
 
   let callId = "";
   let localStream: MediaStream;
