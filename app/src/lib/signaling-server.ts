@@ -3,13 +3,13 @@ const SIGNALING_SERVER_ENPIONT = import.meta.env.VITE_SIGNALING_SERVER_ENPIONT;
 export default class RTCSignalingServer {
   eventsSrc: EventSource;
 
-  constructor(private callId: string, private _pc: RTCPeerConnection) {
+  constructor(private callId: string) {
     this.eventsSrc = new EventSource(
       SIGNALING_SERVER_ENPIONT + "/events/" + callId
     );
   }
 
-  async offer(offer: RTCSessionDescriptionInit) {
+  async call(offer: RTCSessionDescriptionInit) {
     console.info("offer saved", offer);
     await fetch(SIGNALING_SERVER_ENPIONT + "/offer/" + this.callId, {
       method: "POST",
@@ -37,7 +37,15 @@ export default class RTCSignalingServer {
     });
   }
 
-  async addIceCandidates(c: RTCIceCandidate, type: "offer" | "answer") {
+  async addOfferIceCandidates(ic: RTCIceCandidate) {
+    return this.addIceCandidates(ic, "offer");
+  }
+
+  async addAnswerIceCandidates(ic: RTCIceCandidate) {
+    return this.addIceCandidates(ic, "answer");
+  }
+
+  private async addIceCandidates(c: RTCIceCandidate, type: "offer" | "answer") {
     console.info("ice candidates for me", c.toJSON());
     await fetch(
       SIGNALING_SERVER_ENPIONT + `/${type}/${this.callId}/candidate`,
@@ -52,7 +60,7 @@ export default class RTCSignalingServer {
   }
 
   onAnswer(listener: (a: RTCSessionDescription) => void) {
-    this.eventsSrc?.addEventListener("answer", ({ data }) => {
+    this.eventsSrc.addEventListener("answer", ({ data }) => {
       const sdp = new RTCSessionDescription(JSON.parse(data));
       console.info("recieved answer", sdp);
       listener(sdp);
@@ -63,7 +71,7 @@ export default class RTCSignalingServer {
     type: "offer" | "answer",
     listener: (i: RTCIceCandidate) => void
   ) {
-    this.eventsSrc?.addEventListener(`${type}Candidate`, ({ data }) => {
+    this.eventsSrc.addEventListener(`${type}Candidate`, ({ data }) => {
       const ice = new RTCIceCandidate(JSON.parse(data));
       console.info("recieved ice candidate", type, ice);
       listener(ice);

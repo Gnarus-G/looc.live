@@ -1,10 +1,14 @@
 <script lang="ts">
   import { onDestroy, onMount } from "svelte";
+  import manager from "./lib/manage-call";
   import RTCSignalingServer from "./lib/signaling-server";
+
+  const isAnswerer = window.location.pathname.includes("answer");
 
   let callId = "looc";
   let pc = new RTCPeerConnection();
-  let signaling = new RTCSignalingServer(callId, pc);
+  let signaling = new RTCSignalingServer(callId);
+  const { call, answer } = manager(signaling, pc);
 
   let localStream: MediaStream;
   let localVideo: HTMLVideoElement;
@@ -14,6 +18,7 @@
     navigator.mediaDevices
       .getUserMedia({
         video: true,
+        audio: true,
       })
       .then((stream) => {
         localStream = stream;
@@ -37,54 +42,9 @@
       });
   });
 
-  let sdpOfferAsString: string;
-  let sdpAnswerAsString: string;
-
-  async function call() {
-    // save my ice candidates
-    pc.onicecandidate = (event) => {
-      console.info("offer candidates", event.candidate);
-      if (!event.candidate) return;
-      signaling.addIceCandidates(event.candidate, "offer");
-    };
-
-    // create an offer
-    const sdpOffer = await pc.createOffer();
-    console.info("creating an offer");
-    await pc.setLocalDescription(sdpOffer);
-    sdpOfferAsString = JSON.stringify(sdpOffer);
-    await signaling.offer(sdpOffer);
-    navigator.clipboard.writeText(callId);
-
-    // listen for answer
-    signaling.onAnswer((a) => pc.setRemoteDescription(a));
-
-    // add ice candiates for who answered
-    signaling.onNewIceCandidate("answer", (i) => pc.addIceCandidate(i));
-  }
-
-  async function answer() {
-    // save my answer ice candidates
-    pc.onicecandidate = (event) => {
-      console.info("offer candidates", event.candidate);
-      if (!event.candidate) return;
-      signaling.addIceCandidates(event.candidate, "answer");
-    };
-
-    const offer = await signaling.getOffer();
-    pc.setRemoteDescription(new RTCSessionDescription(offer));
-
-    const sdpAnswer = await pc.createAnswer();
-    await pc.setLocalDescription(sdpAnswer);
-
-    await signaling.answer(sdpAnswer);
-    sdpAnswerAsString = JSON.stringify(sdpAnswer);
-
-    signaling.onNewIceCandidate("offer", (i) => pc.addIceCandidate(i));
-  }
-
   onDestroy(() => {
     localStream?.getTracks().forEach((t) => t.stop());
+    pc.close();
   });
 </script>
 
@@ -98,12 +58,10 @@
     </video>
   </div>
   <input type="text" bind:value={callId} />
-  {#if window.location.pathname.includes("answer")}
+  {#if isAnswerer}
     <button on:click={answer}>Answer</button>
-    <pre>{sdpAnswerAsString}</pre>
   {:else}
     <button on:click={call}>Call</button>
-    <pre>{sdpOfferAsString}</pre>
   {/if}
 </main>
 
