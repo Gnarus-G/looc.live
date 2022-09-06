@@ -74,7 +74,25 @@
       localStream = await navigator.mediaDevices.getUserMedia({
         audio: true,
       });
-      localVideo.srcObject = localStream;
+      if (!localVideo.srcObject) {
+        localVideo.srcObject = localStream;
+        return;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function turnOnScreenShare() {
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: true,
+      });
+      if (!localVideo.srcObject) {
+        localVideo.srcObject = stream;
+      }
+      stream.getVideoTracks().forEach((t) => localStream?.addTrack(t));
     } catch (e) {
       console.error(e);
     }
@@ -94,6 +112,9 @@
   </div>
   <input type="text" bind:value={callId} />
   <button on:click={turnOnMic}>Mic</button>
+  {#if navigator.mediaDevices.getDisplayMedia}
+    <button on:click={turnOnScreenShare}>Screen Share</button>
+  {/if}
   {#if isAnswerer}
     <button on:click={answerCall}>Answer</button>
   {:else}
