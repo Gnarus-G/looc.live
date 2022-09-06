@@ -112,7 +112,7 @@
 <main class="h-full w-full flex items-center flex-col justify-around">
   <div class="w-full flex-grow pb-2">
     <video
-      class="fixed drop-shadow-2xl shadow-slate-300 bg-gray-400 left-2 top-2 rounded-2xl w-96 aspect-video"
+      class="sm:fixed drop-shadow-2xl shadow-slate-300 bg-gray-400 sm:left-2 sm:top-2 sm:w-96 sm:rounded-lg w-full aspect-video"
       bind:this={localVideo}
       autoplay
       playsinline
