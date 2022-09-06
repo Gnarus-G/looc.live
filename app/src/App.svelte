@@ -19,7 +19,6 @@
 
   let callId = "";
   let connected = false;
-  let localStream: MediaStream;
   let remoteStream: MediaStream;
   let localVideo: HTMLVideoElement;
   let remoteVideo: HTMLVideoElement;
@@ -64,20 +63,25 @@
 
   $: {
     console.info("resetting local peer");
-    localStream?.getTracks().forEach((t) => {
-      pc.addTrack(t, localStream);
-    });
+    if (localVideo) {
+      const lStream = localVideo.srcObject as MediaStream;
+      lStream?.getTracks().forEach((t) => {
+        pc.addTrack(t, lStream);
+      });
+    }
   }
 
   async function turnOnMic() {
     try {
-      localStream = await navigator.mediaDevices.getUserMedia({
+      const localStream = await navigator.mediaDevices.getUserMedia({
         audio: true,
       });
       if (!localVideo.srcObject) {
         localVideo.srcObject = localStream;
         return;
       }
+      const lStream = localVideo.srcObject as MediaStream;
+      localStream.getAudioTracks().forEach((t) => lStream.addTrack(t));
     } catch (e) {
       console.error(e);
     }
@@ -85,64 +89,105 @@
 
   async function turnOnScreenShare() {
     try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({
+      const localStream = await navigator.mediaDevices.getDisplayMedia({
         video: true,
         audio: true,
       });
       if (!localVideo.srcObject) {
-        localVideo.srcObject = stream;
+        localVideo.srcObject = localStream;
+        return;
       }
-      stream.getVideoTracks().forEach((t) => localStream?.addTrack(t));
+      const lStream = localVideo.srcObject as MediaStream;
+      lStream.getVideoTracks().forEach((t) => {
+        t.stop();
+        lStream.removeTrack(t);
+      });
+      localStream.getVideoTracks().forEach((t) => lStream?.addTrack(t));
     } catch (e) {
       console.error(e);
     }
   }
 </script>
 
-<main>
-  <div class="peers">
-    <video bind:this={localVideo} autoplay playsinline controls>
+<main class="h-full w-full flex items-center flex-col justify-around">
+  <div class="w-full flex-grow pb-2">
+    <video
+      class="fixed drop-shadow-2xl shadow-slate-300 bg-gray-400 left-2 top-2 rounded-2xl w-96 aspect-video"
+      bind:this={localVideo}
+      autoplay
+      playsinline
+      controls
+    >
       <track kind="captions" />
     </video>
     {#if connected}
-      <video bind:this={remoteVideo} autoplay playsinline controls>
+      <video
+        class="w-full max-h-[768px] bg-gray-600 mx-auto aspect-auto"
+        bind:this={remoteVideo}
+        autoplay
+        playsinline
+        controls
+      >
         <track kind="captions" />
       </video>
     {/if}
   </div>
-  <input type="text" bind:value={callId} />
-  <button on:click={turnOnMic}>Mic</button>
-  {#if navigator.mediaDevices.getDisplayMedia}
-    <button on:click={turnOnScreenShare}>Screen Share</button>
-  {/if}
-  {#if isAnswerer}
-    <button on:click={answerCall}>Answer</button>
-  {:else}
-    <button on:click={startCall}>Start call</button>
-  {/if}
+  <form
+    id="call-form"
+    class="mt-auto flex justify-center"
+    on:submit|preventDefault={isAnswerer ? answerCall : startCall}
+  >
+    <label class="block">
+      <span
+        class="block text-sm font-medium text-slate-700 after:content-['*'] after:text-red-500"
+        >Call id</span
+      >
+      <input
+        type="text"
+        class="peer mt-1 px-3 py-2 bg-white border shadow-sm border-slate-300 placeholder-slate-400 focus:outline-none focus:border-sky-500 focus:ring-sky-500 block w-full rounded-md sm:text-sm focus:ring-1"
+        bind:value={callId}
+        required
+      />
+      <p class="mt-2 invisible peer-invalid:visible text-pink-600 text-sm">
+        Please provide a call id
+      </p>
+    </label>
+    <input type="submit" class="hidden" />
+  </form>
+  <div class="flex justify-center gap-10 p-5">
+    <button
+      class="flex items-center bg-blue-500 text-white rounded-2xl px-2 hover:bg-blue-600"
+      on:click={turnOnMic}
+    >
+      <svg viewBox="0 0 24 24" height="20px" class="fill-current mr-1">
+        <path
+          xmlns="http://www.w3.org/2000/svg"
+          d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"
+        />
+      </svg>
+      Mic</button
+    >
+    {#if navigator.mediaDevices.getDisplayMedia}
+      <button
+        class="flex items-center bg-blue-500 hover:bg-blue-600 text-white rounded-2xl px-2"
+        on:click={turnOnScreenShare}
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          height="20px"
+          viewBox="0 0 24 24"
+          class="fill-current mr-1"
+          ><path d="M0 0h24v24H0V0z" fill="none" /><path
+            d="M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.11-.9-2-2-2H4c-1.11 0-2 .89-2 2v10c0 1.1.89 2 2 2H0v2h24v-2h-4zm-7-3.53v-2.19c-2.78 0-4.61.85-6 2.72.56-2.67 2.11-5.33 6-5.87V7l4 3.73-4 3.74z"
+          /></svg
+        >
+        Screen Share</button
+      >
+    {/if}
+    <button
+      form="call-form"
+      class="rounded-2xl text-white px-2 py-1 bg-violet-500 hover:bg-violet-600 active:bg-violet-700 focus:outline-none focus:ring focus:ring-violet-300"
+      type="submit">{isAnswerer ? "Answer" : "Start call"}</button
+    >
+  </div>
 </main>
-
-<style>
-  main {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    width: 100%;
-    gap: 1rem;
-    place-content: center;
-    align-items: center;
-    box-sizing: border-box;
-  }
-  div.peers {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1rem;
-    width: 100%;
-    justify-content: center;
-  }
-  video {
-    background-color: #4a4a4a;
-    border-radius: 0.2rem;
-    width: max(300px, 20%);
-  }
-</style>
