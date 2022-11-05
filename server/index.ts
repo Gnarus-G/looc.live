@@ -26,7 +26,7 @@ const errorHandler: ErrorRequestHandler = (error, _, res, next) => {
 
 app.use(["/*/:id/*", "/*/:id"], callIdValidationHandler);
 
-app.post("/offer/:id", (req, res) => {
+app.post("/offer/:id?", (req, res) => {
   const id = req.params.id ?? cuid();
   const offer = offerSchema.parse(req.body);
   console.log("Offer", offer);
