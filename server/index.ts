@@ -43,7 +43,7 @@ app.get("/offer/:id", (req, res) => {
 app.post("/answer/:id", (req, res) => {
   const id = req.params.id;
   const answer = answerSchema
-    .refine(() => calls.getAnswer(id), "No call by that id has been started")
+    .refine(() => calls.getOffer(id), "No call by that id has been started")
     .parse(req.body);
   console.log("answering call", id, answer);
   res.json({ id });
