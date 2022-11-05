@@ -81,7 +81,10 @@
   async function turnOnScreenShare() {
     try {
       const screenShareStream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
+        video: {
+          width: 1920,
+          height: 1080,
+        },
         audio: true,
       });
       screenShareStream.getTracks().forEach((t) => pc.addTrack(t, localStream));
