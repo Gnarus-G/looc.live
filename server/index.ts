@@ -24,6 +24,9 @@ const errorHandler: ErrorRequestHandler = (error, _, res, next) => {
   return next(error);
 };
 
+const noCallFoundMessage = (id: string) =>
+  `No call by the id "${id}" has been started`;
+
 app.use(["/*/:id/*", "/*/:id"], callIdValidationHandler);
 
 app.post("/offer/:id?", (req, res) => {
@@ -35,15 +38,16 @@ app.post("/offer/:id?", (req, res) => {
 });
 
 app.get("/offer/:id", (req, res) => {
-  const call = calls.getOffer(req.params.id);
-  if (!call) return res.status(400);
+  const id = req.params.id;
+  const call = calls.getOffer(id);
+  if (!call) return res.status(404).send(noCallFoundMessage(id));
   res.json(call);
 });
 
 app.post("/answer/:id", (req, res) => {
   const id = req.params.id;
   const answer = answerSchema
-    .refine(() => calls.getOffer(id), "No call by that id has been started")
+    .refine(() => calls.getOffer(id), noCallFoundMessage(id))
     .parse(req.body);
   console.log("answering call", id, answer);
   res.json({ id });
