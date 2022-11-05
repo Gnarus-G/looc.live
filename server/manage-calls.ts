@@ -3,7 +3,7 @@ import { SDPAnswer, SDPOffer } from "./inputs";
 type ICECandidate = Record<string, unknown>;
 
 interface CallEvent {
-  type: "answer" | "offerCandidate" | "answerCandidate";
+  type: "offer" | "answer" | "offerCandidate" | "answerCandidate";
   data: SDPAnswer | ICECandidate;
 }
 
@@ -17,6 +17,13 @@ export class CallsManager {
 
   setOffer(callId: string, sdp: SDPOffer) {
     this.offerMap.set(callId, sdp);
+    console.log("pushing an offer", sdp, "for call", callId);
+    this.eventListeners.get(callId)?.forEach((l) =>
+      l({
+        type: "offer",
+        data: sdp,
+      })
+    );
   }
 
   getOffer(callId: string) {

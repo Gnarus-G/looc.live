@@ -19,6 +19,24 @@ export default function manager(
     signaling.onAnswer((sdp) => pc.setRemoteDescription(sdp));
 
     signaling.onNewIceCandidate("answer", (aic) => pc.addIceCandidate(aic));
+
+    pc.onnegotiationneeded = async (event) => {
+      console.log("let's parler", event);
+
+      await pc.setLocalDescription();
+      if (pc.localDescription !== null) {
+        await signaling.call(pc.localDescription);
+      }
+    };
+  }
+
+  async function createAndSendAnswer(offer: RTCSessionDescription) {
+    await pc.setRemoteDescription(offer);
+
+    console.info("creating an answer");
+    const sdpAnswer = await pc.createAnswer();
+    await pc.setLocalDescription(sdpAnswer);
+    await signaling.answer(sdpAnswer);
   }
 
   async function answer(offer: RTCSessionDescription) {
@@ -28,13 +46,12 @@ export default function manager(
       signaling.addAnswerIceCandidates(event.candidate);
     };
 
-    pc.setRemoteDescription(offer);
+    await createAndSendAnswer(offer);
 
-    console.info("creating an answer");
-    const sdpAnswer = await pc.createAnswer();
-    await pc.setLocalDescription(sdpAnswer);
-
-    await signaling.answer(sdpAnswer);
+    // for when renegotiations happen
+    signaling.onOffer(async (sdp) => {
+      await createAndSendAnswer(sdp);
+    });
 
     signaling.onNewIceCandidate("offer", (oic) => pc.addIceCandidate(oic));
   }

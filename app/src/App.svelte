@@ -19,6 +19,7 @@
   const localStream = new MediaStream();
 
   let callId = "";
+  let connected = false;
   let remoteStream: MediaStream;
   let localVideo: HTMLVideoElement;
   let remoteVideo: HTMLVideoElement;
@@ -28,6 +29,12 @@
       console.info("on remote track", event.streams);
       [remoteStream] = event.streams;
       console.info("on remote track", "all tracks", remoteStream.getTracks());
+    };
+    pc.oniceconnectionstatechange = () => {
+      console.log("connection state", pc.iceConnectionState);
+      connected = ["connected", "completed", "closed"].includes(
+        pc.iceConnectionState
+      );
     };
   });
 
@@ -155,10 +162,12 @@
         Screen Share</button
       >
     {/if}
-    <button
-      form="call-form"
-      class="rounded-2xl text-white px-2 py-1 bg-violet-500 hover:bg-violet-600 active:bg-violet-700 focus:outline-none focus:ring focus:ring-violet-300"
-      type="submit">Join call</button
-    >
+    {#if !connected}
+      <button
+        form="call-form"
+        class="rounded-2xl text-white px-2 py-1 bg-violet-500 hover:bg-violet-600 active:bg-violet-700 focus:outline-none focus:ring focus:ring-violet-300"
+        type="submit">Join call</button
+      >
+    {/if}
   </div>
 </main>

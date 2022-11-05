@@ -3,6 +3,7 @@ const SIGNALING_SERVER_ENPIONT = import.meta.env.VITE_SIGNALING_SERVER_ENPIONT;
 export default class RTCSignalingServer {
   eventsSrc: EventSource;
   answerListener?: (e: MessageEvent) => void;
+  offerListener?: (e: MessageEvent) => void;
   iceCandidateListener?: (e: MessageEvent) => void;
 
   constructor(private callId: string) {
@@ -79,6 +80,18 @@ export default class RTCSignalingServer {
       listener(sdp);
     };
     this.eventsSrc.addEventListener("answer", this.answerListener);
+  }
+
+  onOffer(listener: (a: RTCSessionDescription) => void) {
+    if (this.offerListener) {
+      this.eventsSrc.removeEventListener("offer", this.offerListener);
+    }
+    this.offerListener = ({ data }) => {
+      const sdp = new RTCSessionDescription(JSON.parse(data));
+      console.info("recieved offer", sdp);
+      listener(sdp);
+    };
+    this.eventsSrc.addEventListener("offer", this.offerListener);
   }
 
   onNewIceCandidate(
