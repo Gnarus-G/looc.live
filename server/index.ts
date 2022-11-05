@@ -1,7 +1,9 @@
 import cuid from "cuid";
 import cors from "cors";
-import e from "express";
+import e, { ErrorRequestHandler, RequestHandler } from "express";
 import { CallsManager } from "./manage-calls";
+import { ZodError } from "zod";
+import { answerSchema, idSchema, offerSchema } from "./inputs";
 
 const app = e();
 
@@ -10,10 +12,25 @@ const calls = new CallsManager();
 app.use(cors());
 app.use(e.json());
 
+const callIdValidationHandler: RequestHandler = (req, _, next) => {
+  idSchema.parse(req.params.id);
+  return next();
+};
+
+const errorHandler: ErrorRequestHandler = (error, _, res, next) => {
+  if (error instanceof ZodError) {
+    return res.status(400).json(error.flatten());
+  }
+  return next(error);
+};
+
+app.use(["/*/:id/*", "/*/:id"], callIdValidationHandler);
+
 app.post("/offer/:id", (req, res) => {
   const id = req.params.id ?? cuid();
-  console.log("Offer", req.body);
-  calls.setOffer(id, req.body);
+  const offer = offerSchema.parse(req.body);
+  console.log("Offer", offer);
+  calls.setOffer(id, offer);
   res.json({ id });
 });
 
@@ -25,9 +42,9 @@ app.get("/offer/:id", (req, res) => {
 
 app.post("/answer/:id", (req, res) => {
   const id = req.params.id;
-  const call = calls.getAnswer(id);
-  if (!call) return res.status(400).json({});
-  const answer = req.body;
+  const answer = answerSchema
+    .refine(() => calls.getAnswer(id), "No call by that id has been started")
+    .parse(req.body);
   console.log("answering call", id, answer);
   res.json({ id });
 });
@@ -64,6 +81,8 @@ app.get("/events/:id", (req, res) => {
     res.end();
   });
 });
+
+app.use(errorHandler);
 
 const PORT = process.env.PORT ?? 8080;
 app.listen(PORT, () => {

@@ -1,12 +1,4 @@
-interface SDPOffer {
-  sdp: string;
-  type: "offer";
-}
-
-interface SDPAnswer {
-  sdp: string;
-  type: "answer";
-}
+import { SDPAnswer, SDPOffer } from "./inputs";
 
 type ICECandidate = Record<string, unknown>;
 
