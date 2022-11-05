@@ -17,9 +17,11 @@
   });
 
   const localStream = new MediaStream();
+  let localMicStream: MediaStream | undefined;
 
   let callId = "";
   let connected = false;
+  let micEnabled = false;
   let remoteStream: MediaStream;
   let localVideo: HTMLVideoElement;
   let remoteVideo: HTMLVideoElement;
@@ -69,15 +71,26 @@
     }
   }
 
-  async function turnOnMic() {
-    try {
-      const audioStream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-      });
-      audioStream.getAudioTracks().forEach((t) => pc.addTrack(t, localStream));
-    } catch (e) {
-      console.error(e);
+  async function toggleMic() {
+    if (!localMicStream) {
+      try {
+        localMicStream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+        });
+        localMicStream
+          .getAudioTracks()
+          .forEach((t) => pc.addTrack(t, localStream));
+        micEnabled = true;
+      } catch (e) {
+        console.error(e);
+      }
+    } else {
+      micEnabled = !micEnabled;
     }
+  }
+
+  $: {
+    if (localMicStream) localMicStream.getAudioTracks()[0].enabled = micEnabled;
   }
 
   async function turnOnScreenShare() {
@@ -150,14 +163,21 @@
   </form>
   <div class="flex justify-center gap-10 p-5">
     <button
-      class="flex items-center bg-blue-500 text-white rounded-2xl px-2 hover:bg-blue-600"
-      on:click={turnOnMic}
+      class="flex items-center bg-blue-500 rounded-2xl px-2 hover:bg-blue-600 text-white"
+      on:click={toggleMic}
     >
       <svg viewBox="0 0 24 24" height="20px" class="fill-current mr-1">
-        <path
-          xmlns="http://www.w3.org/2000/svg"
-          d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"
-        />
+        {#if micEnabled}
+          <path
+            xmlns="http://www.w3.org/2000/svg"
+            d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"
+          />
+        {:else}
+          <path
+            xmlns="http://www.w3.org/2000/svg"
+            d="M19.725 15.5 17.5 13.275q.175-.45.263-.925.087-.475.087-1.175h2.975q0 1.15-.263 2.3-.262 1.15-.837 2.025Zm-3.5-3.5L8.2 3.975V4.1q.325-1.175 1.413-2.05 1.087-.875 2.512-.875 1.75 0 2.975 1.212 1.225 1.213 1.225 2.938v5.95q0 .225-.037.437-.038.213-.063.288Zm-5.6 10.85v-3.125Q7.475 19.3 5.45 16.85t-2.025-5.675H6.45q0 2.375 1.663 4.025 1.662 1.65 4.012 1.65 1.15 0 2.163-.425 1.012-.425 1.787-1.15l2.175 2.175q-.925.9-2.087 1.488-1.163.587-2.538.787v3.125Zm9.025-.35L1.125 3.975 2.95 2.15 21.5 20.675Z"
+          />
+        {/if}
       </svg>
       Mic</button
     >
