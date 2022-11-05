@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onDestroy, onMount } from "svelte";
 
   import manager from "./lib/manage-call";
   import RTCSignalingServer from "./lib/signaling-server";
@@ -29,6 +29,11 @@
       [remoteStream] = event.streams;
       console.info("on remote track", "all tracks", remoteStream.getTracks());
     };
+  });
+
+  onDestroy(() => {
+    localStream.getTracks().forEach((t) => t.stop());
+    pc.close();
   });
 
   async function joinACall() {
