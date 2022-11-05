@@ -50,6 +50,7 @@ app.post("/answer/:id", (req, res) => {
     .refine(() => calls.getOffer(id), noCallFoundMessage(id))
     .parse(req.body);
   console.log("answering call", id, answer);
+  calls.setAnswer(id, answer);
   res.json({ id });
 });
 

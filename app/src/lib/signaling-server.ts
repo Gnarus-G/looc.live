@@ -25,7 +25,12 @@ export default class RTCSignalingServer {
   async getOffer(): Promise<RTCSessionDescription> {
     const sdp: RTCSessionDescriptionInit = await fetch(
       SIGNALING_SERVER_ENPIONT + "/offer/" + this.callId
-    ).then((r) => r.json());
+    ).then((r) => {
+      if (r.ok) {
+        return r.json();
+      }
+      throw new Error("No offer found");
+    });
 
     return new RTCSessionDescription(sdp);
   }

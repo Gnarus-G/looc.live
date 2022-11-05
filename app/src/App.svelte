@@ -2,7 +2,6 @@
   import manager from "./lib/manage-call";
   import RTCSignalingServer from "./lib/signaling-server";
 
-  const isAnswerer = window.location.pathname.includes("answer");
   const iceServersConfig = {
     iceServers: [
       {
@@ -37,23 +36,16 @@
     };
   }
 
-  function startCall() {
+  async function joinACall() {
     connected = false;
-    if (callId) {
-      let signaling = new RTCSignalingServer(callId);
-      pc = new RTCPeerConnection(iceServersConfig);
-      createPeerStream(pc);
-      manager(signaling, pc).call();
-    }
-  }
-
-  function answerCall() {
-    connected = false;
-    if (callId) {
-      let signaling = new RTCSignalingServer(callId);
-      pc = new RTCPeerConnection(iceServersConfig);
-      createPeerStream(pc);
-      manager(signaling, pc).answer();
+    let signaling = new RTCSignalingServer(callId);
+    pc = new RTCPeerConnection(iceServersConfig);
+    createPeerStream(pc);
+    const m = manager(signaling, pc);
+    try {
+      await m.answer(await signaling.getOffer());
+    } catch (e) {
+      await m.call();
     }
   }
 
@@ -135,7 +127,7 @@
   <form
     id="call-form"
     class="mt-auto flex justify-center"
-    on:submit|preventDefault={isAnswerer ? answerCall : startCall}
+    on:submit|preventDefault={joinACall}
   >
     <label class="block">
       <span
@@ -187,7 +179,7 @@
     <button
       form="call-form"
       class="rounded-2xl text-white px-2 py-1 bg-violet-500 hover:bg-violet-600 active:bg-violet-700 focus:outline-none focus:ring focus:ring-violet-300"
-      type="submit">{isAnswerer ? "Answer" : "Start call"}</button
+      type="submit">Join call</button
     >
   </div>
 </main>

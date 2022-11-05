@@ -25,6 +25,7 @@ export class CallsManager {
 
   setAnswer(callId: string, sdp: SDPAnswer) {
     this.answerMap.set(callId, sdp);
+    console.log("pushing an answer", sdp, "for call", callId);
     this.eventListeners.get(callId)?.forEach((l) =>
       l({
         type: "answer",

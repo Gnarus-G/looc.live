@@ -20,13 +20,13 @@ export default function manager(
     signaling.onNewIceCandidate("answer", (aic) => pc.addIceCandidate(aic));
   }
 
-  async function answer() {
+  async function answer(offer: RTCSessionDescription) {
     pc.onicecandidate = (event) => {
       if (!event.candidate) return;
       signaling.addAnswerIceCandidates(event.candidate);
     };
 
-    pc.setRemoteDescription(await signaling.getOffer());
+    pc.setRemoteDescription(offer);
 
     console.info("creating an answer");
     const sdpAnswer = await pc.createAnswer();
