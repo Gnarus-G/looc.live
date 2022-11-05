@@ -1,4 +1,8 @@
+import cuid from "cuid";
+
 const SIGNALING_SERVER_ENPIONT = import.meta.env.VITE_SIGNALING_SERVER_ENPIONT;
+
+const clientId = cuid();
 
 export default class RTCSignalingServer {
   eventsSrc: EventSource;
@@ -8,16 +12,17 @@ export default class RTCSignalingServer {
 
   constructor(private callId: string) {
     this.eventsSrc = new EventSource(
-      SIGNALING_SERVER_ENPIONT + "/events/" + callId
+      `${SIGNALING_SERVER_ENPIONT}/events/${callId}/${clientId}`
     );
   }
 
-  async call(offer: RTCSessionDescriptionInit) {
+  async offer(offer: RTCSessionDescriptionInit) {
     console.info("offer saved", offer);
     await fetch(SIGNALING_SERVER_ENPIONT + "/offer/" + this.callId, {
       method: "POST",
       headers: {
         "content-type": "application/json",
+        "X-Client-ID": clientId,
       },
       body: JSON.stringify(offer),
     });
@@ -42,6 +47,7 @@ export default class RTCSignalingServer {
       method: "POST",
       headers: {
         "content-type": "application/json",
+        "X-Client-ID": clientId,
       },
       body: JSON.stringify(sdpAnswer),
     });
@@ -64,6 +70,7 @@ export default class RTCSignalingServer {
         method: "POST",
         headers: {
           "content-type": "application/json",
+          "X-Client-ID": clientId,
         },
         body: JSON.stringify(c),
       }

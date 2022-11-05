@@ -44,12 +44,14 @@
   });
 
   async function joinACall() {
+    if (!callId) return;
+
     let signaling = new RTCSignalingServer(callId);
     const m = manager(signaling, pc);
     try {
       await m.answer(await signaling.getOffer());
     } catch (e) {
-      await m.call();
+      await m.offer();
     }
   }
 

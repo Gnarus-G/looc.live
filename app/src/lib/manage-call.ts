@@ -4,7 +4,7 @@ export default function manager(
   signaling: RTCSignalingServer,
   pc: RTCPeerConnection
 ) {
-  async function call() {
+  async function createAndSendOffer() {
     pc.onicecandidate = (event) => {
       console.log("on ice candidate", event);
       if (event.candidate === null) return;
@@ -14,50 +14,40 @@ export default function manager(
     console.info("creating an offer");
     const sdpOffer = await pc.createOffer();
     await pc.setLocalDescription(sdpOffer);
-    await signaling.call(sdpOffer);
-
-    signaling.onAnswer((sdp) => pc.setRemoteDescription(sdp));
-
-    signaling.onNewIceCandidate("answer", (aic) => pc.addIceCandidate(aic));
-
-    pc.onnegotiationneeded = async (event) => {
-      console.log("let's parler", event);
-
-      await pc.setLocalDescription();
-      if (pc.localDescription !== null) {
-        await signaling.call(pc.localDescription);
-      }
-    };
+    await signaling.offer(sdpOffer);
   }
 
   async function createAndSendAnswer(offer: RTCSessionDescription) {
-    await pc.setRemoteDescription(offer);
-
-    console.info("creating an answer");
-    const sdpAnswer = await pc.createAnswer();
-    await pc.setLocalDescription(sdpAnswer);
-    await signaling.answer(sdpAnswer);
-  }
-
-  async function answer(offer: RTCSessionDescription) {
     pc.onicecandidate = (event) => {
       console.log("on ice candidate", event);
       if (event.candidate === null) return;
       signaling.addAnswerIceCandidates(event.candidate);
     };
 
-    await createAndSendAnswer(offer);
+    await pc.setRemoteDescription(offer);
 
-    // for when renegotiations happen
-    signaling.onOffer(async (sdp) => {
-      await createAndSendAnswer(sdp);
-    });
+    console.info("creating an answer");
+    const sdpAnswer = await pc.createAnswer();
+    await pc.setLocalDescription(sdpAnswer);
 
-    signaling.onNewIceCandidate("offer", (oic) => pc.addIceCandidate(oic));
+    await signaling.answer(sdpAnswer);
   }
 
+  signaling.onAnswer((sdp) => pc.setRemoteDescription(sdp));
+  signaling.onOffer(async (sdp) => {
+    await createAndSendAnswer(sdp);
+  });
+
+  signaling.onNewIceCandidate("answer", (aic) => pc.addIceCandidate(aic));
+  signaling.onNewIceCandidate("offer", (oic) => pc.addIceCandidate(oic));
+
+  pc.onnegotiationneeded = async (event) => {
+    console.log("let's parler", event);
+    await createAndSendOffer();
+  };
+
   return {
-    call,
-    answer,
+    offer: createAndSendOffer,
+    answer: createAndSendAnswer,
   };
 }
