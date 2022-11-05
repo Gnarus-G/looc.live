@@ -24,6 +24,8 @@
   let localVideo: HTMLVideoElement;
   let remoteVideo: HTMLVideoElement;
 
+  const trackSenders: RTCRtpSender[] = [];
+
   onMount(() => {
     pc.ontrack = (event) => {
       console.info("on remote track", event.streams);
@@ -87,9 +89,17 @@
         },
         audio: true,
       });
+
+      localStream.getVideoTracks().forEach((t) => {
+        t.stop();
+        trackSenders.forEach((s) => pc.removeTrack(s));
+        localStream.removeTrack(t);
+      });
+
       screenShareStream.getTracks().forEach((t) => {
         localStream.addTrack(t);
-        pc.addTrack(t, localStream);
+        const s = pc.addTrack(t, localStream);
+        trackSenders.push(s);
       });
     } catch (e) {
       console.error(e);
