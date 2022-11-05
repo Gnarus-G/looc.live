@@ -87,7 +87,10 @@
         },
         audio: true,
       });
-      screenShareStream.getTracks().forEach((t) => pc.addTrack(t, localStream));
+      screenShareStream.getTracks().forEach((t) => {
+        localStream.addTrack(t);
+        pc.addTrack(t, localStream);
+      });
     } catch (e) {
       console.error(e);
     }
@@ -97,20 +100,18 @@
 <main class="h-full w-full flex items-center flex-col justify-around">
   <div class="w-full flex-grow pb-2">
     <video
-      class="sm:fixed drop-shadow-2xl shadow-slate-300 bg-gray-400 sm:left-2 sm:top-2 sm:w-96 sm:rounded-lg w-full aspect-video"
+      class="sm:fixed z-10 drop-shadow-2xl shadow-slate-300 bg-gray-600 sm:left-2 sm:top-2 sm:w-96 sm:rounded-lg w-full aspect-video"
       bind:this={localVideo}
       autoplay
       playsinline
-      controls
     >
       <track kind="captions" />
     </video>
     <video
-      class="w-full max-h-[768px] bg-gray-600 mx-auto aspect-auto"
+      class="w-full max-h-[768px] bg-gray-400 mx-auto aspect-auto"
       bind:this={remoteVideo}
       autoplay
       playsinline
-      controls
     >
       <track kind="captions" />
     </video>
