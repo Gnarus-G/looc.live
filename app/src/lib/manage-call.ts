@@ -6,6 +6,7 @@ export default function manager(
 ) {
   async function call() {
     pc.onicecandidate = (event) => {
+      console.log("on ice candidate", event);
       if (!event.candidate) return;
       signaling.addOfferIceCandidates(event.candidate);
     };
@@ -22,6 +23,7 @@ export default function manager(
 
   async function answer(offer: RTCSessionDescription) {
     pc.onicecandidate = (event) => {
+      console.log("on ice candidate", event);
       if (!event.candidate) return;
       signaling.addAnswerIceCandidates(event.candidate);
     };

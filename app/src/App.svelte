@@ -1,8 +1,10 @@
 <script lang="ts">
+  import { onMount } from "svelte";
+
   import manager from "./lib/manage-call";
   import RTCSignalingServer from "./lib/signaling-server";
 
-  const iceServersConfig = {
+  let pc = new RTCPeerConnection({
     iceServers: [
       {
         urls: [
@@ -12,35 +14,25 @@
       },
     ],
     iceCandidatePoolSize: 10,
-  };
+  });
 
-  let pc = new RTCPeerConnection(iceServersConfig);
+  const localStream = new MediaStream();
 
   let callId = "";
-  let connected = false;
   let remoteStream: MediaStream;
   let localVideo: HTMLVideoElement;
   let remoteVideo: HTMLVideoElement;
 
-  function createPeerStream(pc: RTCPeerConnection) {
-    remoteStream = new MediaStream();
-
+  onMount(() => {
     pc.ontrack = (event) => {
       console.info("on remote track", event.streams);
-      const stream = event.streams[0];
-      console.info("on remote track", stream.getTracks());
-      connected = true;
-      event.streams[0].getTracks().forEach((t) => {
-        remoteStream.addTrack(t);
-      });
+      [remoteStream] = event.streams;
+      console.info("on remote track", "all tracks", remoteStream.getTracks());
     };
-  }
+  });
 
   async function joinACall() {
-    connected = false;
     let signaling = new RTCSignalingServer(callId);
-    pc = new RTCPeerConnection(iceServersConfig);
-    createPeerStream(pc);
     const m = manager(signaling, pc);
     try {
       await m.answer(await signaling.getOffer());
@@ -50,30 +42,23 @@
   }
 
   $: {
-    if (connected && remoteVideo) remoteVideo.srcObject = remoteStream;
+    if (remoteVideo) {
+      remoteVideo.srcObject = remoteStream;
+    }
   }
 
   $: {
-    console.info("resetting local peer");
     if (localVideo) {
-      const lStream = localVideo.srcObject as MediaStream;
-      lStream?.getTracks().forEach((t) => {
-        pc.addTrack(t, lStream);
-      });
+      localVideo.srcObject = localStream;
     }
   }
 
   async function turnOnMic() {
     try {
-      const localStream = await navigator.mediaDevices.getUserMedia({
+      const audioStream = await navigator.mediaDevices.getUserMedia({
         audio: true,
       });
-      if (!localVideo.srcObject) {
-        localVideo.srcObject = localStream;
-        return;
-      }
-      const lStream = localVideo.srcObject as MediaStream;
-      localStream.getAudioTracks().forEach((t) => lStream.addTrack(t));
+      audioStream.getAudioTracks().forEach((t) => pc.addTrack(t, localStream));
     } catch (e) {
       console.error(e);
     }
@@ -81,20 +66,11 @@
 
   async function turnOnScreenShare() {
     try {
-      const localStream = await navigator.mediaDevices.getDisplayMedia({
+      const screenShareStream = await navigator.mediaDevices.getDisplayMedia({
         video: true,
         audio: true,
       });
-      if (!localVideo.srcObject) {
-        localVideo.srcObject = localStream;
-        return;
-      }
-      const lStream = localVideo.srcObject as MediaStream;
-      lStream.getVideoTracks().forEach((t) => {
-        t.stop();
-        lStream.removeTrack(t);
-      });
-      localStream.getVideoTracks().forEach((t) => lStream?.addTrack(t));
+      screenShareStream.getTracks().forEach((t) => pc.addTrack(t, localStream));
     } catch (e) {
       console.error(e);
     }
@@ -112,17 +88,15 @@
     >
       <track kind="captions" />
     </video>
-    {#if connected}
-      <video
-        class="w-full max-h-[768px] bg-gray-600 mx-auto aspect-auto"
-        bind:this={remoteVideo}
-        autoplay
-        playsinline
-        controls
-      >
-        <track kind="captions" />
-      </video>
-    {/if}
+    <video
+      class="w-full max-h-[768px] bg-gray-600 mx-auto aspect-auto"
+      bind:this={remoteVideo}
+      autoplay
+      playsinline
+      controls
+    >
+      <track kind="captions" />
+    </video>
   </div>
   <form
     id="call-form"
