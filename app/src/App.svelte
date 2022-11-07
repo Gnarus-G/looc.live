@@ -4,6 +4,7 @@
 
   import manager from "./lib/manage-call";
   import RTCSignalingServer from "./lib/signaling-server";
+  import PipButton from "./PIPButton.svelte";
 
   let pc = new RTCPeerConnection({
     iceServers: [
@@ -21,6 +22,7 @@
   let localMicStream: MediaStream | undefined;
 
   let callId = "";
+  let pictureInPictureIsActivated: boolean;
   let connected = false;
   let micEnabled = false;
   let remoteStream: MediaStream;
@@ -124,13 +126,22 @@
 
 <main class="h-full w-full flex items-center flex-col justify-around">
   <Draggable
-    class="sm:fixed z-20 drop-shadow-2xl shadow-slate-300 bg-gray-600 sm:w-96 sm:rounded-lg w-full aspect-video"
+    class="sm:fixed z-20 drop-shadow-2xl shadow-slate-300 bg-gray-600 sm:w-96 sm:rounded-lg w-full aspect-video transition-opacity {pictureInPictureIsActivated
+      ? 'opacity-0'
+      : 'opacity-100'}"
     left={8}
     top={8}
   >
     <video bind:this={localVideo} autoplay playsinline>
       <track kind="captions" />
     </video>
+    {#if localVideo}
+      <PipButton
+        class="absolute bottom-1/4 right-10 fill-current"
+        bind:video={localVideo}
+        bind:active={pictureInPictureIsActivated}
+      />
+    {/if}
   </Draggable>
   <video
     class="w-full h-full bg-gray-400 mx-auto aspect-auto peer"
