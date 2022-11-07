@@ -133,14 +133,16 @@
     </video>
   </Draggable>
   <video
-    class="w-full h-full bg-gray-400 mx-auto aspect-auto"
+    class="w-full h-full bg-gray-400 mx-auto aspect-auto peer"
     bind:this={remoteVideo}
     autoplay
     playsinline
   >
     <track kind="captions" />
   </video>
-  <div class="absolute bottom-0">
+  <div
+    class="absolute bottom-0 transition-opacity opacity-0 peer-hover:opacity-100 hover:opacity-100"
+  >
     <form
       id="call-form"
       class="mt-auto flex justify-center"
