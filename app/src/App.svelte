@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from "svelte";
+  import Draggable from "./Draggable.svelte";
 
   import manager from "./lib/manage-call";
   import RTCSignalingServer from "./lib/signaling-server";
@@ -122,14 +123,15 @@
 </script>
 
 <main class="h-full w-full flex items-center flex-col justify-around">
-  <video
-    class="sm:fixed z-10 drop-shadow-2xl shadow-slate-300 bg-gray-600 sm:left-2 sm:top-2 sm:w-96 sm:rounded-lg w-full aspect-video"
-    bind:this={localVideo}
-    autoplay
-    playsinline
+  <Draggable
+    class="sm:fixed z-20 drop-shadow-2xl shadow-slate-300 bg-gray-600 sm:w-96 sm:rounded-lg w-full aspect-video"
+    left={8}
+    top={8}
   >
-    <track kind="captions" />
-  </video>
+    <video bind:this={localVideo} autoplay playsinline>
+      <track kind="captions" />
+    </video>
+  </Draggable>
   <video
     class="w-full h-full bg-gray-400 mx-auto aspect-auto"
     bind:this={remoteVideo}
