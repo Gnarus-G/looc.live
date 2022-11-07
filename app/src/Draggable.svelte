@@ -4,8 +4,11 @@
 
   export let left = 0;
   export let top = 0;
+  let width: number;
+  let height: number;
 
-  let draggableContainer: HTMLDivElement;
+  let winWidth: number;
+  let winHeight: number;
 
   let moving = false;
 
@@ -25,12 +28,12 @@
         top = 0;
       }
 
-      if (left + draggableContainer.clientWidth > window.innerWidth) {
-        left = window.innerWidth - draggableContainer.clientWidth;
+      if (left + width > winWidth) {
+        left = winWidth - width;
       }
 
-      if (top + draggableContainer.clientHeight > window.innerHeight) {
-        top = window.innerHeight - draggableContainer.clientHeight;
+      if (top + height > winHeight) {
+        top = winHeight - height;
       }
     }
   }
@@ -41,7 +44,8 @@
 </script>
 
 <div
-  bind:this={draggableContainer}
+  bind:clientWidth={width}
+  bind:clientHeight={height}
   on:mousedown={onMouseDown}
   style="left: {left}px; top: {top}px;"
   class="draggable {className}"
@@ -49,7 +53,12 @@
   <slot />
 </div>
 
-<svelte:window on:mouseup={onMouseUp} on:mousemove={onMouseMove} />
+<svelte:window
+  on:mouseup={onMouseUp}
+  on:mousemove={onMouseMove}
+  bind:innerWidth={winWidth}
+  bind:innerHeight={winHeight}
+/>
 
 <style>
   .draggable {
