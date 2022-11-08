@@ -18,3 +18,8 @@ export const answerSchema = z.object({
   type: z.enum(["answer"]),
 });
 export type SDPAnswer = z.infer<typeof answerSchema>;
+
+export const peerQueryParamsSchema = z.object({
+  peerId: peerIdSchema,
+  userName: z.string().min(1),
+});

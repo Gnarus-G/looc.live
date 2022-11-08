@@ -1,22 +1,21 @@
-import cuid from "cuid";
 import cors from "cors";
-import e, { ErrorRequestHandler, RequestHandler } from "express";
-import { CallEventListener, CallsManager } from "./manage-calls";
+import e, { ErrorRequestHandler } from "express";
 import { ZodError } from "zod";
-import { answerSchema, peerIdSchema, idSchema, offerSchema } from "./inputs";
+import {
+  offerSchema,
+  answerSchema,
+  peerIdSchema,
+  peerQueryParamsSchema,
+} from "./inputs";
+import Peers from "./peers";
 
 const PEER_ID_HEADER = "X-Peer-ID";
 
 const app = e();
-const calls = new CallsManager();
+const peers = new Peers();
 
 app.use(cors());
 app.use(e.json());
-
-const callIdValidationHandler: RequestHandler = (req, _, next) => {
-  idSchema.parse(req.params.id);
-  return next();
-};
 
 const errorHandler: ErrorRequestHandler = (error, _, res, next) => {
   if (error instanceof ZodError) {
@@ -25,81 +24,131 @@ const errorHandler: ErrorRequestHandler = (error, _, res, next) => {
   return next(error);
 };
 
-const noCallFoundMessage = (id: string) =>
-  `No call by the id "${id}" has been started`;
+const noPeerFoundMessage = (id: string) =>
+  `No peer by the id "${id}" is connected`;
 
-app.use(["/*/:id/*", "/*/:id"], callIdValidationHandler);
-
-app.post("/offer/:id?", (req, res) => {
-  const id = req.params.id ?? cuid();
+app.post("/offer/:peerId", (req, res) => {
+  const { peerId } = req.params;
   const offer = offerSchema.parse(req.body);
+  const offeringPeerId = peerIdSchema.parse(req.get(PEER_ID_HEADER));
 
-  const peerId = peerIdSchema.parse(req.get(PEER_ID_HEADER));
+  console.log("offering", { peerId, offer, offeringPeerId });
 
-  console.log("offering call", { id, offer, peerId });
+  const peerOfInterest = peers.get(peerId);
 
-  calls.setOffer(id, offer, peerId);
+  if (!peerOfInterest) {
+    return res.status(404).send(noPeerFoundMessage(peerId));
+  }
 
-  res.json({ id });
+  peerOfInterest.notify({
+    type: "offer",
+    data: {
+      fromPeerId: offeringPeerId,
+      payload: offer,
+    },
+  });
+
+  res.json({
+    peer: peerOfInterest,
+  });
 });
 
-app.get("/offer/:id", (req, res) => {
-  const id = req.params.id;
-  const call = calls.getOffer(id);
-  if (!call) return res.status(404).send(noCallFoundMessage(id));
-  res.json(call);
+app.post("/answer/:peerId", (req, res) => {
+  const { peerId } = req.params;
+  const answer = answerSchema.parse(req.body);
+  const answeringPeerId = peerIdSchema.parse(req.get(PEER_ID_HEADER));
+
+  console.log("answering", {
+    peerId,
+    answer,
+    answeringPeerId,
+  });
+
+  const peerOfInterest = peers.get(peerId);
+
+  if (!peerOfInterest) {
+    return res.status(404).send(noPeerFoundMessage(peerId));
+  }
+
+  peerOfInterest.notify({
+    type: "answer",
+    data: {
+      fromPeerId: answeringPeerId,
+      payload: answer,
+    },
+  });
+
+  res.json({
+    peer: peerOfInterest,
+  });
 });
 
-app.post("/answer/:id", (req, res) => {
-  const id = req.params.id;
-  const answer = answerSchema
-    .refine(() => calls.getOffer(id), noCallFoundMessage(id))
-    .parse(req.body);
+app.post("/offer/:peerId/candidate", (req, res) => {
+  const id = req.params.peerId;
 
-  const peerId = peerIdSchema.parse(req.get(PEER_ID_HEADER));
+  console.log("sending offer candidate to peer", id);
 
-  console.log("answering call", { id, answer, peerId });
+  const peer = peers.get(id);
 
-  calls.setAnswer(id, answer, peerId);
-  res.json({ id });
-});
+  if (!peer) return res.status(404).send(noPeerFoundMessage(id));
 
-app.post("/offer/:id/candidate", (req, res) => {
-  const id = req.params.id;
-  console.log("setting offer candidate for call", id);
-  const peerId = peerIdSchema.parse(req.get(PEER_ID_HEADER));
-  calls.setOfferCandidate(id, req.body, peerId);
+  peer.notify({
+    type: "offerCandidate",
+    data: {
+      fromPeerId: peerIdSchema.parse(req.get(PEER_ID_HEADER)),
+      payload: req.body,
+    },
+  });
+
   res.status(204);
 });
 
-app.post("/answer/:id/candidate", (req, res) => {
-  const id = req.params.id;
-  console.log("setting answer candidate for call", id);
-  const peerId = peerIdSchema.parse(req.get(PEER_ID_HEADER));
-  calls.setAnswerCandidate(id, req.body, peerId);
+app.post("/answer/:peerId/candidate", (req, res) => {
+  const id = req.params.peerId;
+
+  console.log("sending answer candidate to peer", id);
+
+  const peer = peers.get(id);
+
+  if (!peer) return res.status(404).send(noPeerFoundMessage(id));
+
+  peer.notify({
+    type: "answerCandidate",
+    data: {
+      fromPeerId: peerIdSchema.parse(req.get(PEER_ID_HEADER)),
+      payload: req.body,
+    },
+  });
+
   res.status(204);
 });
 
-app.get("/events/:id/:peerId", (req, res) => {
-  const callId = req.params.id;
+app.get("/events/", (req, res) => {
+  const peerParams = peerQueryParamsSchema.parse(req.query);
 
-  const listener: CallEventListener = (e) => {
-    res.write(`event: ${e.type}\n`);
-    res.write(`data: ${JSON.stringify(e.data)}\n\n`);
-  };
-
-  listener.id = req.params.peerId;
-
-  const unregisterListener = calls.registerEventListener(callId, listener);
+  const clearPeer = peers.add({
+    id: peerParams.peerId,
+    userName: peerParams.userName,
+    notify: (e) => {
+      res.write(`event: ${e.type}\n`);
+      res.write(`data: ${JSON.stringify(e.data)}\n\n`);
+    },
+  });
 
   res.contentType("text/event-stream");
   res.set({
     Connection: "Keep-alive",
   });
 
-  res.on("close", () => {
-    unregisterListener();
+  req.on("close", () => {
+    clearPeer();
     res.end();
+  });
+});
+
+app.get("/peers", (_, res) => {
+  res.json({
+    data: peers.toArray(),
   });
 });
 
