@@ -17,11 +17,11 @@ export class CallsManager {
 
   private eventListeners = new Map<string, Set<CallEventListener>>();
 
-  setOffer(callId: string, sdp: SDPOffer, clientId?: string) {
+  setOffer(callId: string, sdp: SDPOffer, peerId?: string) {
     this.offerMap.set(callId, sdp);
     console.log("pushing an offer", sdp, "for call", callId);
     this.eventListeners.get(callId)?.forEach((l) => {
-      if (l.id === clientId) return null;
+      if (l.id === peerId) return null;
       l({
         type: "offer",
         data: sdp,
@@ -33,11 +33,11 @@ export class CallsManager {
     return this.offerMap.get(callId);
   }
 
-  setAnswer(callId: string, sdp: SDPAnswer, clientId?: string) {
+  setAnswer(callId: string, sdp: SDPAnswer, peerId?: string) {
     this.answerMap.set(callId, sdp);
     console.log("pushing an answer", sdp, "for call", callId);
     this.eventListeners.get(callId)?.forEach((l) => {
-      if (l.id === clientId) return null;
+      if (l.id === peerId) return null;
       l({
         type: "answer",
         data: sdp,
@@ -49,10 +49,10 @@ export class CallsManager {
     return this.answerMap.get(callId);
   }
 
-  setOfferCandidate(callId: string, c: ICECandidate, clientId?: string) {
+  setOfferCandidate(callId: string, c: ICECandidate, peerId?: string) {
     console.log("pushing an offer ice candidate", c);
     this.eventListeners.get(callId)?.forEach((l) => {
-      if (l.id === clientId) return null;
+      if (l.id === peerId) return null;
       l({
         type: "offerCandidate",
         data: c,
@@ -60,10 +60,10 @@ export class CallsManager {
     });
   }
 
-  setAnswerCandidate(callId: string, c: ICECandidate, clientId?: string) {
+  setAnswerCandidate(callId: string, c: ICECandidate, peerId?: string) {
     console.log("pushing an answer ice candidate", c);
     this.eventListeners.get(callId)?.forEach((l) => {
-      if (l.id === clientId) return null;
+      if (l.id === peerId) return null;
       l({
         type: "answerCandidate",
         data: c,

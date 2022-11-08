@@ -2,9 +2,9 @@ import { z } from "zod";
 
 export const idSchema = z.string().min(1, "An id, for the call, is required");
 
-export const clientIdSchema = z
+export const peerIdSchema = z
   .string()
-  .min(1, "An id is required to identify the requesting client")
+  .min(1, "An id is required to identify the requesting peer")
   .cuid();
 
 export const offerSchema = z.object({

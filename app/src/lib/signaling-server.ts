@@ -2,7 +2,9 @@ import cuid from "cuid";
 
 const SIGNALING_SERVER_ENPIONT = import.meta.env.VITE_SIGNALING_SERVER_ENPIONT;
 
-const clientId = cuid();
+const PEER_ID_HEADER = "X-Peer-ID";
+
+const peerId = cuid();
 
 export default class RTCSignalingServer {
   eventsSrc: EventSource;
@@ -12,7 +14,7 @@ export default class RTCSignalingServer {
 
   constructor(private callId: string) {
     this.eventsSrc = new EventSource(
-      `${SIGNALING_SERVER_ENPIONT}/events/${callId}/${clientId}`
+      `${SIGNALING_SERVER_ENPIONT}/events/${callId}/${peerId}`
     );
   }
 
@@ -22,7 +24,7 @@ export default class RTCSignalingServer {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "X-Client-ID": clientId,
+        [PEER_ID_HEADER]: peerId,
       },
       body: JSON.stringify(offer),
     });
@@ -47,7 +49,7 @@ export default class RTCSignalingServer {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "X-Client-ID": clientId,
+        [PEER_ID_HEADER]: peerId,
       },
       body: JSON.stringify(sdpAnswer),
     });
@@ -70,7 +72,7 @@ export default class RTCSignalingServer {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          "X-Client-ID": clientId,
+          [PEER_ID_HEADER]: peerId,
         },
         body: JSON.stringify(c),
       }

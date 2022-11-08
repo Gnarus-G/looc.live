@@ -3,10 +3,11 @@ import cors from "cors";
 import e, { ErrorRequestHandler, RequestHandler } from "express";
 import { CallEventListener, CallsManager } from "./manage-calls";
 import { ZodError } from "zod";
-import { answerSchema, clientIdSchema, idSchema, offerSchema } from "./inputs";
+import { answerSchema, peerIdSchema, idSchema, offerSchema } from "./inputs";
+
+const PEER_ID_HEADER = "X-Peer-ID";
 
 const app = e();
-
 const calls = new CallsManager();
 
 app.use(cors());
@@ -33,11 +34,11 @@ app.post("/offer/:id?", (req, res) => {
   const id = req.params.id ?? cuid();
   const offer = offerSchema.parse(req.body);
 
-  const clientId = clientIdSchema.parse(req.get("X-Client-ID"));
+  const peerId = peerIdSchema.parse(req.get(PEER_ID_HEADER));
 
-  console.log("offering call", { id, offer, clientId });
+  console.log("offering call", { id, offer, peerId });
 
-  calls.setOffer(id, offer, clientId);
+  calls.setOffer(id, offer, peerId);
 
   res.json({ id });
 });
@@ -55,31 +56,31 @@ app.post("/answer/:id", (req, res) => {
     .refine(() => calls.getOffer(id), noCallFoundMessage(id))
     .parse(req.body);
 
-  const clientId = clientIdSchema.parse(req.get("X-Client-ID"));
+  const peerId = peerIdSchema.parse(req.get(PEER_ID_HEADER));
 
-  console.log("answering call", { id, answer, clientId });
+  console.log("answering call", { id, answer, peerId });
 
-  calls.setAnswer(id, answer, clientId);
+  calls.setAnswer(id, answer, peerId);
   res.json({ id });
 });
 
 app.post("/offer/:id/candidate", (req, res) => {
   const id = req.params.id;
   console.log("setting offer candidate for call", id);
-  const clientId = clientIdSchema.parse(req.get("X-Client-ID"));
-  calls.setOfferCandidate(id, req.body, clientId);
+  const peerId = peerIdSchema.parse(req.get(PEER_ID_HEADER));
+  calls.setOfferCandidate(id, req.body, peerId);
   res.status(204);
 });
 
 app.post("/answer/:id/candidate", (req, res) => {
   const id = req.params.id;
   console.log("setting answer candidate for call", id);
-  const clientId = clientIdSchema.parse(req.get("X-Client-ID"));
-  calls.setAnswerCandidate(id, req.body, clientId);
+  const peerId = peerIdSchema.parse(req.get(PEER_ID_HEADER));
+  calls.setAnswerCandidate(id, req.body, peerId);
   res.status(204);
 });
 
-app.get("/events/:id/:clientId", (req, res) => {
+app.get("/events/:id/:peerId", (req, res) => {
   const callId = req.params.id;
 
   const listener: CallEventListener = (e) => {
@@ -87,7 +88,7 @@ app.get("/events/:id/:clientId", (req, res) => {
     res.write(`data: ${JSON.stringify(e.data)}\n\n`);
   };
 
-  listener.id = req.params.clientId;
+  listener.id = req.params.peerId;
 
   const unregisterListener = calls.registerEventListener(callId, listener);
 
