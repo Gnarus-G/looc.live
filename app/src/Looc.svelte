@@ -131,9 +131,9 @@
     try {
       const screenShareStream = await navigator.mediaDevices.getDisplayMedia({
         video: {
-          width: 1920,
-          height: 1080,
-          frameRate: 60,
+          width: 1366,
+          height: 768,
+          frameRate: 30,
         },
         audio: true,
       });
@@ -147,11 +147,26 @@
       screenShareStream.getTracks().forEach((t) => {
         localStream.addTrack(t);
         const s = pc.addTrack(t, localStream);
+        setVideoParams(s, 768);
         trackSenders.push(s);
       });
     } catch (e) {
       console.error(e);
     }
+  }
+
+  async function setVideoParams(
+    sender: RTCRtpSender,
+    height: number,
+    bitrate: number = 1000000
+  ) {
+    const scaleRatio = (sender.track?.getSettings().height ?? 0) / height;
+    const params = sender.getParameters();
+
+    params.degradationPreference = "maintain-framerate";
+    params.encodings[0].scaleResolutionDownBy = Math.max(scaleRatio, 1);
+    params.encodings[0].maxBitrate = bitrate;
+    await sender.setParameters(params);
   }
 </script>
 
