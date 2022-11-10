@@ -2,8 +2,6 @@ import cuid from "cuid";
 
 export type Peer = { id: string; userName: string };
 
-export type PeerID = Peer["id"];
-
 const SIGNALING_SERVER_ENPIONT = import.meta.env.VITE_SIGNALING_SERVER_ENPIONT;
 
 const PEER_ID_HEADER = "X-Peer-ID";
@@ -23,22 +21,22 @@ export default class RTCSignalingServer {
     );
   }
 
-  async offer(offer: RTCSessionDescriptionInit, to: PeerID) {
+  async offer(offer: RTCSessionDescriptionInit, to: Peer) {
     console.info("sending offer", offer);
-    await this.post("/offer/" + to, offer);
+    await this.post("/offer/" + to.id, offer);
   }
 
-  async answer(offer: RTCSessionDescriptionInit, to: PeerID) {
+  async answer(offer: RTCSessionDescriptionInit, to: Peer) {
     console.info("sending answer", offer);
-    await this.post("/answer/" + to, offer);
+    await this.post("/answer/" + to.id, offer);
   }
 
-  async addOfferIceCandidates(ic: RTCIceCandidate, to: PeerID) {
+  async addOfferIceCandidates(ic: RTCIceCandidate, to: Peer) {
     console.info("offer ice candidates", ic.toJSON());
     return this.addIceCandidates(ic, "offer", to);
   }
 
-  async addAnswerIceCandidates(ic: RTCIceCandidate, to: PeerID) {
+  async addAnswerIceCandidates(ic: RTCIceCandidate, to: Peer) {
     console.info("answer ice candidates", ic.toJSON());
     return this.addIceCandidates(ic, "answer", to);
   }
@@ -46,12 +44,12 @@ export default class RTCSignalingServer {
   private async addIceCandidates(
     c: RTCIceCandidate,
     type: "offer" | "answer",
-    to: PeerID
+    to: Peer
   ) {
-    await this.post(`/${type}/${to}/candidate`, c);
+    await this.post(`/${type}/${to.id}/candidate`, c);
   }
 
-  onAnswer(listener: (a: RTCSessionDescription, to: PeerID) => void) {
+  onAnswer(listener: (a: RTCSessionDescription, to: Peer) => void) {
     if (this.answerListener) {
       this.eventsSrc.removeEventListener("answer", this.answerListener);
     }
@@ -59,12 +57,12 @@ export default class RTCSignalingServer {
       const parsedData = JSON.parse(data);
       const sdp = new RTCSessionDescription(parsedData.payload);
       console.info("recieved answer", parsedData);
-      listener(sdp, parsedData.fromPeerId);
+      listener(sdp, parsedData.fromPeer);
     };
     this.eventsSrc.addEventListener("answer", this.answerListener);
   }
 
-  onOffer(listener: (a: RTCSessionDescription, to: PeerID) => void) {
+  onOffer(listener: (a: RTCSessionDescription, to: Peer) => void) {
     if (this.offerListener) {
       this.eventsSrc.removeEventListener("offer", this.offerListener);
     }
@@ -72,7 +70,7 @@ export default class RTCSignalingServer {
       const parsedData = JSON.parse(data);
       const sdp = new RTCSessionDescription(parsedData.payload);
       console.info("recieved offer", parsedData);
-      listener(sdp, parsedData.fromPeerId);
+      listener(sdp, parsedData.fromPeer);
     };
     this.eventsSrc.addEventListener("offer", this.offerListener);
   }
@@ -118,7 +116,7 @@ export default class RTCSignalingServer {
     this.peerConnectedListener = ({ data }) => {
       const parsedData = JSON.parse(data);
       console.info("peer connected", parsedData);
-      listener(parsedData);
+      listener(parsedData.fromPeer);
     };
 
     this.eventsSrc.addEventListener(
@@ -138,7 +136,7 @@ export default class RTCSignalingServer {
     this.peerDisconnectedListener = ({ data }) => {
       const parsedData = JSON.parse(data);
       console.info("peer disconnected", parsedData);
-      listener(parsedData);
+      listener(parsedData.fromPeer);
     };
 
     this.eventsSrc.addEventListener(

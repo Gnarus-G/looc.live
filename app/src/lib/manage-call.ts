@@ -1,28 +1,28 @@
-import type { PeerID } from "./signaling-server";
+import type { Peer } from "./signaling-server";
 import type RTCSignalingServer from "./signaling-server";
 
 export async function createAndSendOffer(
   pc: RTCPeerConnection,
   signaling: RTCSignalingServer,
-  peerId: PeerID
+  peer: Peer
 ) {
   pc.onicecandidate = (event) => {
     console.log("on ice candidate", event);
     if (event.candidate === null) return;
-    signaling.addOfferIceCandidates(event.candidate, peerId);
+    signaling.addOfferIceCandidates(event.candidate, peer);
   };
 
   console.info("creating an offer");
   const sdpOffer = await pc.createOffer();
   await pc.setLocalDescription(sdpOffer);
-  await signaling.offer(sdpOffer, peerId);
+  await signaling.offer(sdpOffer, peer);
 }
 
 export async function createAndSendAnswer(
   pc: RTCPeerConnection,
   signaling: RTCSignalingServer,
   offer: RTCSessionDescription,
-  to: PeerID
+  to: Peer
 ) {
   pc.onicecandidate = (event) => {
     console.log("on ice candidate", event);

@@ -13,7 +13,7 @@ interface PeerNotification<T> {
     | "peerConnected"
     | "peerDisconnected";
   data: {
-    fromPeerId: Peer["id"];
+    fromPeer: Omit<Peer, "notify">;
     payload: T;
   };
 }
@@ -23,6 +23,7 @@ export default class Peers {
 
   add(peer: Peer) {
     this.peerMap.set(peer.id, peer);
+    console.log("peers", this);
     return () => {
       this.peerMap.delete(peer.id);
     };

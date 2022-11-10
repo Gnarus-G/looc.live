@@ -43,7 +43,7 @@ app.post("/offer/:peerId", (req, res) => {
   peerOfInterest.notify({
     type: "offer",
     data: {
-      fromPeerId: offeringPeerId,
+      fromPeer: peers.get(offeringPeerId)!,
       payload: offer,
     },
   });
@@ -73,7 +73,7 @@ app.post("/answer/:peerId", (req, res) => {
   peerOfInterest.notify({
     type: "answer",
     data: {
-      fromPeerId: answeringPeerId,
+      fromPeer: peers.get(answeringPeerId)!,
       payload: answer,
     },
   });
@@ -95,7 +95,7 @@ app.post("/offer/:peerId/candidate", (req, res) => {
   peer.notify({
     type: "offerCandidate",
     data: {
-      fromPeerId: peerIdSchema.parse(req.get(PEER_ID_HEADER)),
+      fromPeer: peers.get(peerIdSchema.parse(req.get(PEER_ID_HEADER)))!,
       payload: req.body,
     },
   });
@@ -115,7 +115,7 @@ app.post("/answer/:peerId/candidate", (req, res) => {
   peer.notify({
     type: "answerCandidate",
     data: {
-      fromPeerId: peerIdSchema.parse(req.get(PEER_ID_HEADER)),
+      fromPeer: peers.get(peerIdSchema.parse(req.get(PEER_ID_HEADER)))!,
       payload: req.body,
     },
   });
@@ -126,14 +126,16 @@ app.post("/answer/:peerId/candidate", (req, res) => {
 app.get("/events/", (req, res) => {
   const peerParams = peerQueryParamsSchema.parse(req.query);
 
+  console.log("peer connected", peerParams);
+
   peers.notifyAll({
     type: "peerConnected",
     data: {
-      fromPeerId: peerParams.peerId,
-      payload: {
+      fromPeer: {
         id: peerParams.peerId,
         userName: peerParams.userName,
       },
+      payload: null,
     },
   });
 
@@ -157,11 +159,11 @@ app.get("/events/", (req, res) => {
     peers.notifyAll({
       type: "peerDisconnected",
       data: {
-        fromPeerId: peerParams.peerId,
-        payload: {
+        fromPeer: {
           id: peerParams.peerId,
           userName: peerParams.userName,
         },
+        payload: null,
       },
     });
 

@@ -3,7 +3,7 @@
   import Draggable from "./Draggable.svelte";
 
   import { createAndSendAnswer, createAndSendOffer } from "./lib/manage-call";
-  import RTCSignalingServer, { type PeerID } from "./lib/signaling-server";
+  import RTCSignalingServer, { type Peer } from "./lib/signaling-server";
   import PipButton from "./PIPButton.svelte";
 
   export let userName: string;
@@ -22,7 +22,7 @@
 
   let signaling = new RTCSignalingServer(userName);
   let peers = signaling.peers();
-  let remotePeerId: PeerID;
+  let remotePeer: Peer;
 
   const localStream = new MediaStream();
   let localMicStream: MediaStream | undefined;
@@ -51,23 +51,23 @@
     };
 
     signaling.onAnswer((sdp) => pc.setRemoteDescription(sdp));
-    signaling.onOffer(async (sdp, fromPeerId) => {
-      if (remotePeerId !== fromPeerId) {
-        if (window.confirm("Answer call from peer " + fromPeerId)) {
-          remotePeerId = fromPeerId;
-          await createAndSendAnswer(pc, signaling, sdp, fromPeerId);
+    signaling.onOffer(async (sdp, fromPeer) => {
+      if (remotePeer?.id !== fromPeer.id) {
+        if (window.confirm(`Answer call from ${fromPeer.userName}?`)) {
+          remotePeer = fromPeer;
+          await createAndSendAnswer(pc, signaling, sdp, fromPeer);
 
           pc.onnegotiationneeded = async (event) => {
             console.log("let's parler", event);
-            await createAndSendOffer(pc, signaling, remotePeerId);
+            await createAndSendOffer(pc, signaling, remotePeer);
           };
         }
       } else {
-        await createAndSendAnswer(pc, signaling, sdp, fromPeerId);
+        await createAndSendAnswer(pc, signaling, sdp, fromPeer);
 
         pc.onnegotiationneeded = async (event) => {
           console.log("let's parler", event);
-          await createAndSendOffer(pc, signaling, remotePeerId);
+          await createAndSendOffer(pc, signaling, remotePeer);
         };
       }
     });
@@ -91,11 +91,11 @@
     pc.close();
   });
 
-  async function call(peerId: PeerID) {
-    remotePeerId = peerId;
+  async function call(peer: Peer) {
+    remotePeer = peer;
     pc.onnegotiationneeded = async (event) => {
       console.log("let's parler", event);
-      await createAndSendOffer(pc, signaling, remotePeerId);
+      await createAndSendOffer(pc, signaling, remotePeer);
     };
     await turnOnMic();
   }
@@ -276,7 +276,7 @@
             <button
               class="rounded-2xl text-white px-2 py-1 bg-violet-500 hover:bg-violet-600 active:bg-violet-700 focus:outline-none focus:ring focus:ring-violet-300"
               type="submit"
-              on:click={() => call(peer.id)}>Call</button
+              on:click={() => call(peer)}>Call</button
             >
           </li>
         {/each}
@@ -286,5 +286,7 @@
 {/if}
 
 <svelte:head>
-  <title>Looc: {userName}</title>
+  <title
+    >Looc: {userName} {remotePeer ? `and ${remotePeer.userName}` : ""}</title
+  >
 </svelte:head>
