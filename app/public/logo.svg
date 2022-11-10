@@ -1,9 +1,4 @@
-<script lang="ts">
-  interface $$Props
-    extends Omit<svelte.JSX.SVGProps<SVGElement>, "viewBox" | "xmlns"> {}
-</script>
-
-<svg viewBox="0 100 549 350" xmlns="http://www.w3.org/2000/svg" {...$$props}>
+<svg viewBox="0 100 549 350" xmlns="http://www.w3.org/2000/svg">
   <path d="M80 148H104L116 161V214V325H80V148Z" fill="#451B58" />
   <path d="M144 358H245L339 393H144V358Z" fill="#451B58" />
   <path
