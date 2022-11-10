@@ -172,8 +172,11 @@
     const params = sender.getParameters();
 
     params.degradationPreference = "maintain-framerate";
-    params.encodings[0].scaleResolutionDownBy = Math.max(scaleRatio, 1);
-    params.encodings[0].maxBitrate = bitrate;
+    const [encoding] = params.encodings;
+    if (encoding) {
+      encoding.scaleResolutionDownBy = Math.max(scaleRatio, 1);
+      encoding.maxBitrate = bitrate;
+    }
     await sender.setParameters(params);
   }
 </script>
