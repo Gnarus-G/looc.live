@@ -273,3 +273,7 @@
     {/await}
   </main>
 {/if}
+
+<svelte:head>
+  <title>Looc: {userName}</title>
+</svelte:head>

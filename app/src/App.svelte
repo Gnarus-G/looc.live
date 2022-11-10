@@ -1,5 +1,6 @@
 <script lang="ts">
   import Looc from "./Looc.svelte";
+  import Logo from "./Logo.svelte";
 
   let userName: string;
   let showLooc = false;
@@ -14,7 +15,8 @@
 {#if showLooc}
   <Looc {userName} />
 {:else}
-  <main class="h-full w-full flex items-center justify-center">
+  <main class="h-full w-full flex flex-col items-center justify-center">
+    <Logo width="50%" />
     <form
       id="call-form"
       class="flex flex-wrap items-center justify-center"
