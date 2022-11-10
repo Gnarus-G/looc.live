@@ -192,7 +192,7 @@
       </video>
       {#if localVideo}
         <PipButton
-          class="absolute bottom-1/4 right-10 fill-current"
+          class="absolute bottom-1/4 right-10 fill-current text-white"
           bind:video={localVideo}
           bind:active={pictureInPictureIsActivated}
         />
