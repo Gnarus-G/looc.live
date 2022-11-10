@@ -2,7 +2,7 @@
   import { onDestroy, onMount } from "svelte";
   import Draggable from "./Draggable.svelte";
 
-  import { createAndSendAnswer, createAndSendOffer } from "./lib/manage-call";
+  import { createAndSendAnswer, createAndSendOffer } from "./lib/negotiators";
   import RTCSignalingServer, { type Peer } from "./lib/signaling-server";
   import PipButton from "./PIPButton.svelte";
 
@@ -36,7 +36,7 @@
 
   const trackSenders: RTCRtpSender[] = [];
 
-  onMount(async () => {
+  onMount(() => {
     pc.ontrack = (event) => {
       console.info("on remote track", event.streams);
       [remoteStream] = event.streams;
@@ -49,29 +49,28 @@
         pc.iceConnectionState
       );
     };
+  });
 
+  $: {
+    pc.onnegotiationneeded = async (event) => {
+      console.log("let's parler", event);
+      await createAndSendOffer(pc, signaling, remotePeer);
+    };
+  }
+
+  onMount(() => {
     signaling.onAnswer((sdp) => pc.setRemoteDescription(sdp));
     signaling.onOffer(async (sdp, fromPeer) => {
-      if (remotePeer?.id !== fromPeer.id) {
-        if (window.confirm(`Answer call from ${fromPeer.userName}?`)) {
-          remotePeer = fromPeer;
-          await createAndSendAnswer(pc, signaling, sdp, fromPeer);
+      const isCurrentRemotePeer = remotePeer?.id === fromPeer.id;
+      if (isCurrentRemotePeer) {
+        return await createAndSendAnswer(pc, signaling, sdp, fromPeer);
+      }
 
-          pc.onnegotiationneeded = async (event) => {
-            console.log("let's parler", event);
-            await createAndSendOffer(pc, signaling, remotePeer);
-          };
-        }
-      } else {
+      if (window.confirm(`Answer call from ${fromPeer.userName}?`)) {
+        remotePeer = fromPeer;
         await createAndSendAnswer(pc, signaling, sdp, fromPeer);
-
-        pc.onnegotiationneeded = async (event) => {
-          console.log("let's parler", event);
-          await createAndSendOffer(pc, signaling, remotePeer);
-        };
       }
     });
-
     signaling.onNewIceCandidate("answer", (aic) => pc.addIceCandidate(aic));
     signaling.onNewIceCandidate("offer", (oic) => pc.addIceCandidate(oic));
   });
@@ -93,10 +92,8 @@
 
   async function call(peer: Peer) {
     remotePeer = peer;
-    pc.onnegotiationneeded = async (event) => {
-      console.log("let's parler", event);
-      await createAndSendOffer(pc, signaling, remotePeer);
-    };
+    // to trigger ice negotiation, the state of which
+    // we depend on to know if we're connected and can speak to the remote peer
     await turnOnMic();
   }
 
