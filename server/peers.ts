@@ -4,6 +4,8 @@ interface Peer {
   notify<T>(notification: PeerNotification<T>): void;
 }
 
+export type PeerDTO = Omit<Peer, "notify">;
+
 interface PeerNotification<T> {
   type:
     | "offer"
@@ -13,7 +15,7 @@ interface PeerNotification<T> {
     | "peerConnected"
     | "peerDisconnected";
   data: {
-    fromPeer: Omit<Peer, "notify">;
+    fromPeer: PeerDTO;
     payload: T;
   };
 }

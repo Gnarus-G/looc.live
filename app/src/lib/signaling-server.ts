@@ -1,6 +1,7 @@
 import cuid from "cuid";
+import type { PeerDTO } from "../../../server/peers";
 
-export type Peer = { id: string; userName: string };
+export type Peer = PeerDTO;
 
 const SIGNALING_SERVER_ENPIONT = import.meta.env.VITE_SIGNALING_SERVER_ENPIONT;
 
