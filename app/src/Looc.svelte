@@ -21,6 +21,7 @@
   });
 
   let signaling = new RTCSignalingServer(userName);
+  let peers = signaling.peers();
   let remotePeerId: PeerID;
 
   const localStream = new MediaStream();
@@ -73,6 +74,16 @@
 
     signaling.onNewIceCandidate("answer", (aic) => pc.addIceCandidate(aic));
     signaling.onNewIceCandidate("offer", (oic) => pc.addIceCandidate(oic));
+  });
+
+  onMount(() => {
+    signaling.onPeerConnected(() => {
+      peers = signaling.peers();
+    });
+
+    signaling.onPeerDisconnected(() => {
+      peers = signaling.peers();
+    });
   });
 
   onDestroy(() => {
@@ -243,7 +254,7 @@
   </main>
 {:else}
   <main class="h-full w-full flex flex-col items-center justify-center">
-    {#await signaling.peers()}
+    {#await peers}
       <p>...Loading</p>
     {:then peers}
       {#if peers.data.length === 0}

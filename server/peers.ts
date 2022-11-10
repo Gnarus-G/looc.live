@@ -1,19 +1,21 @@
-import { SDPAnswer, SDPOffer } from "./inputs";
-
-type ICECandidate = Record<string, unknown>;
-
-interface PeerNotification {
-  type: "offer" | "answer" | "offerCandidate" | "answerCandidate";
-  data: {
-    fromPeerId: Peer["id"];
-    payload: SDPAnswer | SDPOffer | ICECandidate;
-  };
-}
-
 interface Peer {
   id: string;
   userName: string;
-  notify(notification: PeerNotification): void;
+  notify<T>(notification: PeerNotification<T>): void;
+}
+
+interface PeerNotification<T> {
+  type:
+    | "offer"
+    | "answer"
+    | "offerCandidate"
+    | "answerCandidate"
+    | "peerConnected"
+    | "peerDisconnected";
+  data: {
+    fromPeerId: Peer["id"];
+    payload: T;
+  };
 }
 
 export default class Peers {
@@ -28,6 +30,12 @@ export default class Peers {
 
   get(peerId: string) {
     return this.peerMap.get(peerId);
+  }
+
+  notifyAll<T>(note: PeerNotification<T>) {
+    this.peerMap.forEach((p) => {
+      p.notify(note);
+    });
   }
 
   toArray() {

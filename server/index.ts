@@ -126,7 +126,18 @@ app.post("/answer/:peerId/candidate", (req, res) => {
 app.get("/events/", (req, res) => {
   const peerParams = peerQueryParamsSchema.parse(req.query);
 
-  const clearPeer = peers.add({
+  peers.notifyAll({
+    type: "peerConnected",
+    data: {
+      fromPeerId: peerParams.peerId,
+      payload: {
+        id: peerParams.peerId,
+        userName: peerParams.userName,
+      },
+    },
+  });
+
+  const removePeer = peers.add({
     id: peerParams.peerId,
     userName: peerParams.userName,
     notify: (e) => {
@@ -141,14 +152,27 @@ app.get("/events/", (req, res) => {
   });
 
   req.on("close", () => {
-    clearPeer();
+    removePeer();
+
+    peers.notifyAll({
+      type: "peerDisconnected",
+      data: {
+        fromPeerId: peerParams.peerId,
+        payload: {
+          id: peerParams.peerId,
+          userName: peerParams.userName,
+        },
+      },
+    });
+
     res.end();
   });
 });
 
-app.get("/peers", (_, res) => {
+app.get("/peers", (req, res) => {
+  const peerId = peerIdSchema.parse(req.get(PEER_ID_HEADER));
   res.json({
-    data: peers.toArray(),
+    data: peers.toArray().filter((p) => p.id !== peerId),
   });
 });
 

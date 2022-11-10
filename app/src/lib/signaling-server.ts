@@ -1,6 +1,8 @@
 import cuid from "cuid";
 
-export type PeerID = string;
+export type Peer = { id: string; userName: string };
+
+export type PeerID = Peer["id"];
 
 const SIGNALING_SERVER_ENPIONT = import.meta.env.VITE_SIGNALING_SERVER_ENPIONT;
 
@@ -12,6 +14,8 @@ export default class RTCSignalingServer {
   answerListener?: (e: MessageEvent) => void;
   offerListener?: (e: MessageEvent) => void;
   iceCandidateListener?: (e: MessageEvent) => void;
+  peerConnectedListener?: (e: MessageEvent) => void;
+  peerDisconnectedListener?: (e: MessageEvent) => void;
 
   constructor(userName: string) {
     this.eventsSrc = new EventSource(
@@ -94,11 +98,53 @@ export default class RTCSignalingServer {
     );
   }
 
-  async peers(): Promise<{
-    data: Array<{ id: string; userName: string }>;
-  }> {
-    const r = await fetch(SIGNALING_SERVER_ENPIONT + "/peers");
+  async peers(): Promise<{ data: Array<Peer> }> {
+    const r = await fetch(SIGNALING_SERVER_ENPIONT + "/peers", {
+      headers: {
+        [PEER_ID_HEADER]: this.peerId,
+      },
+    });
     return await r.json();
+  }
+
+  onPeerConnected(listener: (peer: Peer) => void) {
+    if (this.peerConnectedListener) {
+      this.eventsSrc.removeEventListener(
+        "peerConnected",
+        this.peerConnectedListener
+      );
+    }
+
+    this.peerConnectedListener = ({ data }) => {
+      const parsedData = JSON.parse(data);
+      console.info("peer connected", parsedData);
+      listener(parsedData);
+    };
+
+    this.eventsSrc.addEventListener(
+      "peerConnected",
+      this.peerConnectedListener
+    );
+  }
+
+  onPeerDisconnected(listener: (peer: Peer) => void) {
+    if (this.peerDisconnectedListener) {
+      this.eventsSrc.removeEventListener(
+        "peerDisconnected",
+        this.peerDisconnectedListener
+      );
+    }
+
+    this.peerDisconnectedListener = ({ data }) => {
+      const parsedData = JSON.parse(data);
+      console.info("peer disconnected", parsedData);
+      listener(parsedData);
+    };
+
+    this.eventsSrc.addEventListener(
+      "peerDisconnected",
+      this.peerDisconnectedListener
+    );
   }
 
   private post(endpoint: string, data: any) {
