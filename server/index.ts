@@ -1,11 +1,12 @@
 import cors from "cors";
 import e, { ErrorRequestHandler } from "express";
-import { ZodError } from "zod";
+import { z, ZodError } from "zod";
 import {
   offerSchema,
   answerSchema,
   peerIdSchema,
   peerQueryParamsSchema,
+  createPeerIDToPeerTransformer,
 } from "./inputs";
 import Peers from "./peers";
 
@@ -17,33 +18,31 @@ const peers = new Peers();
 app.use(cors());
 app.use(e.json());
 
-const errorHandler: ErrorRequestHandler = (error, _, res, next) => {
-  if (error instanceof ZodError) {
-    return res.status(400).json(error.flatten());
-  }
-  return next(error);
-};
+export const peerSchema = z
+  .string({
+    required_error: `Must pass the current/conecting peer id through ${PEER_ID_HEADER} header`,
+  })
+  .cuid(`${PEER_ID_HEADER} must be a cuid`)
+  .transform(createPeerIDToPeerTransformer(peers));
 
-const noPeerFoundMessage = (id: string) =>
-  `No peer by the id "${id}" is connected`;
+const transformPeerIdToPeerWithZod = createPeerIDToPeerTransformer(peers);
 
 app.post("/offer/:peerId", (req, res) => {
   const { peerId } = req.params;
+  const fromPeer = peerSchema.parse(req.get(PEER_ID_HEADER));
   const offer = offerSchema.parse(req.body);
-  const offeringPeerId = peerIdSchema.parse(req.get(PEER_ID_HEADER));
 
-  console.log("offering", { peerId, offer, offeringPeerId });
+  console.log("offering", { peerId, offer, fromPeer });
 
-  const peerOfInterest = peers.get(peerId);
-
-  if (!peerOfInterest) {
-    return res.status(404).send(noPeerFoundMessage(peerId));
-  }
+  const peerOfInterest = z
+    .string()
+    .transform(transformPeerIdToPeerWithZod)
+    .parse(peerId);
 
   peerOfInterest.notify({
     type: "offer",
     data: {
-      fromPeer: peers.get(offeringPeerId)!,
+      fromPeer,
       payload: offer,
     },
   });
@@ -55,25 +54,20 @@ app.post("/offer/:peerId", (req, res) => {
 
 app.post("/answer/:peerId", (req, res) => {
   const { peerId } = req.params;
+  const fromPeer = peerSchema.parse(req.get(PEER_ID_HEADER));
   const answer = answerSchema.parse(req.body);
-  const answeringPeerId = peerIdSchema.parse(req.get(PEER_ID_HEADER));
 
-  console.log("answering", {
-    peerId,
-    answer,
-    answeringPeerId,
-  });
+  console.log("answering", { peerId, answer, fromPeer });
 
-  const peerOfInterest = peers.get(peerId);
-
-  if (!peerOfInterest) {
-    return res.status(404).send(noPeerFoundMessage(peerId));
-  }
+  const peerOfInterest = z
+    .string()
+    .transform(transformPeerIdToPeerWithZod)
+    .parse(peerId);
 
   peerOfInterest.notify({
     type: "answer",
     data: {
-      fromPeer: peers.get(answeringPeerId)!,
+      fromPeer,
       payload: answer,
     },
   });
@@ -88,14 +82,14 @@ app.post("/offer/:peerId/candidate", (req, res) => {
 
   console.log("sending offer candidate to peer", id);
 
-  const peer = peers.get(id);
-
-  if (!peer) return res.status(404).send(noPeerFoundMessage(id));
+  const peer = z.string().transform(transformPeerIdToPeerWithZod).parse(id);
 
   peer.notify({
     type: "offerCandidate",
     data: {
-      fromPeer: peers.get(peerIdSchema.parse(req.get(PEER_ID_HEADER)))!,
+      fromPeer: peerIdSchema
+        .transform(transformPeerIdToPeerWithZod)
+        .parse(req.get(PEER_ID_HEADER)),
       payload: req.body,
     },
   });
@@ -108,14 +102,14 @@ app.post("/answer/:peerId/candidate", (req, res) => {
 
   console.log("sending answer candidate to peer", id);
 
-  const peer = peers.get(id);
-
-  if (!peer) return res.status(404).send(noPeerFoundMessage(id));
+  const peer = z.string().transform(transformPeerIdToPeerWithZod).parse(id);
 
   peer.notify({
     type: "answerCandidate",
     data: {
-      fromPeer: peers.get(peerIdSchema.parse(req.get(PEER_ID_HEADER)))!,
+      fromPeer: peerIdSchema
+        .transform(transformPeerIdToPeerWithZod)
+        .parse(req.get(PEER_ID_HEADER)),
       payload: req.body,
     },
   });
@@ -172,11 +166,24 @@ app.get("/events/", (req, res) => {
 });
 
 app.get("/peers", (req, res) => {
-  const peerId = peerIdSchema.parse(req.get(PEER_ID_HEADER));
+  const { peerId } = z
+    .object({ peerId: peerIdSchema.optional() })
+    .parse(req.query);
+
   res.json({
     data: peers.toArray().filter((p) => p.id !== peerId),
   });
 });
+
+const errorHandler: ErrorRequestHandler = (error, _, res, next) => {
+  console.log("caught", error);
+
+  if (error instanceof ZodError) {
+    return res.status(400).json({ errors: error.format() });
+  }
+
+  return next(error);
+};
 
 app.use(errorHandler);
 
