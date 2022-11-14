@@ -4,7 +4,7 @@
   "description": "A REST api for signaling for a webRTC app.",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "tsup index.ts --watch --onSuccess 'node .'",
+    "dev": "tsup index.ts --sourcemap --watch --onSuccess 'node --inspect .'",
     "start": "node .",
     "build": "tsup index.ts --clean"
   },
