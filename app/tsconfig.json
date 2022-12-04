@@ -9,6 +9,7 @@
     "allowJs": true,
     "checkJs": true,
     "isolatedModules": true,
+    "noUncheckedIndexedAccess": false,
     "strict": true
   },
   "include": ["src/**/*.d.ts", "src/**/*.ts", "src/**/*.js", "src/**/*.svelte"],
