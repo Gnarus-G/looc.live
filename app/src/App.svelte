@@ -27,8 +27,8 @@
     >
       <label class="block">
         <span
-          class="block text-sm font-medium text-slate-700 after:content-['*'] after:text-red-500"
-          >Username:</span
+          class="block text-sm font-medium text-slate-100 after:content-['*'] after:text-red-500"
+          >Username</span
         >
         <input
           type="text"

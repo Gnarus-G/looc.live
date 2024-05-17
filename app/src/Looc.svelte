@@ -46,7 +46,7 @@
     pc.oniceconnectionstatechange = () => {
       console.log("connection state", pc.iceConnectionState);
       connected = ["connected", "completed", "closed"].includes(
-        pc.iceConnectionState
+        pc.iceConnectionState,
       );
     };
   });
@@ -166,7 +166,7 @@
   async function setVideoParams(
     sender: RTCRtpSender,
     height: number,
-    bitrate: number = 1000000
+    bitrate: number = 1000000,
   ) {
     const scaleRatio = (sender.track?.getSettings().height ?? 0) / height;
     const params = sender.getParameters();
@@ -184,7 +184,7 @@
 {#if connected}
   <main class="h-full w-full flex items-center flex-col justify-around">
     <Draggable
-      class="sm:fixed z-20 drop-shadow-2xl shadow-slate-300 bg-gray-600 sm:w-96 sm:rounded-lg w-full aspect-video transition-opacity {pictureInPictureIsActivated
+      class="sm:fixed z-20 drop-shadow-2xl shadow-slate-300 bg-slate-800 sm:w-96 sm:rounded-lg w-full aspect-video transition-opacity {pictureInPictureIsActivated
         ? 'opacity-0'
         : 'opacity-100'}"
       left={8}
@@ -202,7 +202,7 @@
       {/if}
     </Draggable>
     <video
-      class="w-full h-full bg-gray-400 mx-auto aspect-auto peer"
+      class="w-full h-full mx-auto aspect-auto peer"
       bind:this={remoteVideo}
       autoplay
       playsinline
@@ -214,7 +214,7 @@
     >
       <div class="flex justify-center gap-10 p-5">
         <button
-          class="flex items-center bg-blue-500 rounded-2xl px-2 hover:bg-blue-600 text-white"
+          class="min-w-16 flex items-center bg-blue-500 rounded-2xl px-3 py-1 hover:bg-blue-600 text-white transition active:scale-95"
           on:click={toggleMic}
         >
           <svg viewBox="0 0 24 24" height="20px" class="fill-current mr-1">
@@ -234,7 +234,7 @@
         >
         {#if navigator.mediaDevices.getDisplayMedia}
           <button
-            class="flex items-center bg-blue-500 hover:bg-blue-600 text-white rounded-2xl px-2"
+            class="flex items-center bg-blue-500 hover:bg-blue-600 text-white rounded px-3 transition active:scale-95"
             on:click={turnOnScreenShare}
           >
             <svg
@@ -253,31 +253,36 @@
     </div>
   </main>
 {:else}
-  <main class="h-full w-full flex flex-col items-center justify-center">
+  <main
+    class="h-full container max-w-md mx-auto w-full flex gap-5 flex-col justify-center"
+  >
     {#await peers}
-      <p>...Loading</p>
+      <p class="mx-auto text-xl text-blue-200 animate-pulse">Loading...</p>
     {:then peers}
       {#if peers.data.length === 0}
-        <p>No peers online, currently</p>
+        <h2 class="font-semibold text-slate-100">No peers online, currently</h2>
       {:else}
-        <p>Peers currently online:</p>
+        <h2 class="font-semibold text-lg text-slate-100">
+          Peers currently online:
+        </h2>
       {/if}
       <ul>
         {#each peers.data as peer}
-          <li class="flex justify-between gap-10 my-10 items-center">
-            <div>
-              <p>
-                {peer.id}
-              </p>
-              <p>
+          <li class="w-full">
+            <p class="text-[0.5rem] font-light">
+              {peer.id}
+            </p>
+            <div class="flex justify-between gap-5 py-2 items-center border-t">
+              <p class="font-semibold text-xl text-slate-300">
                 {peer.userName}
               </p>
+              <button
+                class="min-w-16 rounded text-white px-2 py-1 bg-violet-700 hover:bg-violet-600 active:bg-violet-900 focus:outline-none
+                transition active:scale-95"
+                type="submit"
+                on:click={() => call(peer)}>Call</button
+              >
             </div>
-            <button
-              class="rounded-2xl text-white px-2 py-1 bg-violet-500 hover:bg-violet-600 active:bg-violet-700 focus:outline-none focus:ring focus:ring-violet-300"
-              type="submit"
-              on:click={() => call(peer)}>Call</button
-            >
           </li>
         {/each}
       </ul>
