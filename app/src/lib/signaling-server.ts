@@ -1,159 +1,136 @@
-import cuid from "cuid";
-import type { PeerDTO } from "../../../server/peers";
-
-export type Peer = PeerDTO;
+import { ServerMessage, type PeerDTO } from "./schema";
 
 const SIGNALING_SERVER_ENPIONT = import.meta.env.VITE_SIGNALING_SERVER_ENPIONT;
+
+type Peer = PeerDTO;
 
 const PEER_ID_HEADER = "X-Peer-ID";
 
 export default class RTCSignalingServer {
-  peerId = cuid();
-  eventsSrc: EventSource;
-  answerListener?: (e: MessageEvent) => void;
-  offerListener?: (e: MessageEvent) => void;
-  iceCandidateListener?: (e: MessageEvent) => void;
-  peerConnectedListener?: (e: MessageEvent) => void;
-  peerDisconnectedListener?: (e: MessageEvent) => void;
+  localPeerId = "";
+  localIsPolite = false;
+
+  private ws: WebSocket;
+
+  private descriptionListener?: (
+    e: RTCSessionDescriptionInit,
+    from: PeerDTO
+  ) => void;
+  private iceCandidateListener?: (e: RTCIceCandidate) => void;
+  private peerConnectedListener?: (p: PeerDTO) => void;
+  private peerDisconnectedListener?: (p: PeerDTO) => void;
 
   constructor(userName: string) {
-    this.eventsSrc = new EventSource(
-      `${SIGNALING_SERVER_ENPIONT}/events?peerId=${this.peerId}&userName=${userName}`
-    );
-  }
+    const url = new URL(SIGNALING_SERVER_ENPIONT + "/ws");
+    url.protocol = import.meta.env.PROD ? "wss" : "ws";
+    this.ws = new WebSocket(url);
 
-  async offer(offer: RTCSessionDescriptionInit, to: Peer) {
-    console.info("sending offer", offer);
-    await this.post("/offer/" + to.id, offer);
-  }
-
-  async answer(offer: RTCSessionDescriptionInit, to: Peer) {
-    console.info("sending answer", offer);
-    await this.post("/answer/" + to.id, offer);
-  }
-
-  async addOfferIceCandidates(ic: RTCIceCandidate, to: Peer) {
-    console.info("offer ice candidates", ic.toJSON());
-    return this.addIceCandidates(ic, "offer", to);
-  }
-
-  async addAnswerIceCandidates(ic: RTCIceCandidate, to: Peer) {
-    console.info("answer ice candidates", ic.toJSON());
-    return this.addIceCandidates(ic, "answer", to);
-  }
-
-  private async addIceCandidates(
-    c: RTCIceCandidate,
-    type: "offer" | "answer",
-    to: Peer
-  ) {
-    await this.post(`/${type}/${to.id}/candidate`, c);
-  }
-
-  onAnswer(listener: (a: RTCSessionDescription, to: Peer) => void) {
-    if (this.answerListener) {
-      this.eventsSrc.removeEventListener("answer", this.answerListener);
-    }
-    this.answerListener = ({ data }) => {
-      const parsedData = JSON.parse(data);
-      const sdp = new RTCSessionDescription(parsedData.payload);
-      console.info("recieved answer", parsedData);
-      listener(sdp, parsedData.fromPeer);
+    this.ws.onerror = (e) => {
+      console.error("[RTCSignalingServer] error in ws", e);
     };
-    this.eventsSrc.addEventListener("answer", this.answerListener);
-  }
 
-  onOffer(listener: (a: RTCSessionDescription, to: Peer) => void) {
-    if (this.offerListener) {
-      this.eventsSrc.removeEventListener("offer", this.offerListener);
-    }
-    this.offerListener = ({ data }) => {
-      const parsedData = JSON.parse(data);
-      const sdp = new RTCSessionDescription(parsedData.payload);
-      console.info("recieved offer", parsedData);
-      listener(sdp, parsedData.fromPeer);
-    };
-    this.eventsSrc.addEventListener("offer", this.offerListener);
-  }
-
-  onNewIceCandidate(
-    type: "offer" | "answer",
-    listener: (i: RTCIceCandidate) => void
-  ) {
-    if (this.iceCandidateListener) {
-      this.eventsSrc.removeEventListener(
-        `${type}Candidate`,
-        this.iceCandidateListener
+    this.ws.onopen = () => {
+      this.ws.send(
+        JSON.stringify({
+          type: "introduction",
+          userName,
+        })
       );
-    }
-    this.iceCandidateListener = ({ data }) => {
-      const ice = new RTCIceCandidate(JSON.parse(data).payload);
-      console.info("recieved", type, "ice candidate", ice);
-      listener(ice);
     };
-    this.eventsSrc.addEventListener(
-      `${type}Candidate`,
-      this.iceCandidateListener
+
+    this.ws.onmessage = (m) => {
+      console.log("ws message", m.data);
+      const message = ServerMessage.parse(JSON.parse(m.data));
+
+      switch (message.type) {
+        case "introduction":
+          this.localPeerId = message.id;
+          break;
+        case "description":
+          this.descriptionListener?.(message.data, message.fromPeer);
+          break;
+        case "candidate":
+          this.iceCandidateListener?.(message.data as any);
+          break;
+        case "peer-connected":
+          this.peerConnectedListener?.(message.fromPeer);
+          break;
+        case "peer-disconnected":
+          this.peerDisconnectedListener?.(message.fromPeer);
+          break;
+
+        default:
+          console.warn("unhandled message type");
+          break;
+      }
+    };
+  }
+
+  async sendDescription(data: RTCSessionDescription, to: Peer) {
+    console.info("sending description", data);
+    this.ws.send(
+      JSON.stringify({
+        type: "description",
+        data,
+        sendTo: to.id,
+      })
     );
+  }
+
+  async sendCandidate(data: RTCIceCandidate, to: Peer) {
+    console.info("sending candidate", data);
+    this.ws.send(
+      JSON.stringify({
+        type: "candidate",
+        data,
+        sendTo: to.id,
+      })
+    );
+  }
+
+  ondescription(
+    listener: (desc: RTCSessionDescription, from: Peer) => Promise<void> | void
+  ) {
+    this.descriptionListener = (desc, from: Peer) => {
+      const sdp = new RTCSessionDescription(desc);
+      console.info("recieved description", desc);
+      return listener(sdp, from);
+    };
+  }
+
+  onicecandidate(listener: (a: RTCIceCandidate) => void) {
+    this.iceCandidateListener = (icecand) => {
+      const ice = new RTCIceCandidate(icecand);
+      console.info("recieved ice candidate", ice);
+      return listener(ice);
+    };
   }
 
   async peers(): Promise<{ data: Array<Peer> }> {
+    if (!this.localPeerId)
+      return {
+        data: [],
+      };
+
     const r = await fetch(SIGNALING_SERVER_ENPIONT + "/peers", {
       headers: {
-        [PEER_ID_HEADER]: this.peerId,
+        [PEER_ID_HEADER]: this.localPeerId,
       },
     });
     return await r.json();
   }
 
   onPeerConnected(listener: (peer: Peer) => void) {
-    if (this.peerConnectedListener) {
-      this.eventsSrc.removeEventListener(
-        "peerConnected",
-        this.peerConnectedListener
-      );
-    }
-
-    this.peerConnectedListener = ({ data }) => {
-      const parsedData = JSON.parse(data);
-      console.info("peer connected", parsedData);
-      listener(parsedData.fromPeer);
+    this.peerConnectedListener = (fromPeer) => {
+      console.info("peer connected", fromPeer);
+      listener(fromPeer);
     };
-
-    this.eventsSrc.addEventListener(
-      "peerConnected",
-      this.peerConnectedListener
-    );
   }
 
   onPeerDisconnected(listener: (peer: Peer) => void) {
-    if (this.peerDisconnectedListener) {
-      this.eventsSrc.removeEventListener(
-        "peerDisconnected",
-        this.peerDisconnectedListener
-      );
-    }
-
-    this.peerDisconnectedListener = ({ data }) => {
-      const parsedData = JSON.parse(data);
-      console.info("peer disconnected", parsedData);
-      listener(parsedData.fromPeer);
+    this.peerDisconnectedListener = (fromPeer) => {
+      console.info("peer disconnected", fromPeer);
+      listener(fromPeer);
     };
-
-    this.eventsSrc.addEventListener(
-      "peerDisconnected",
-      this.peerDisconnectedListener
-    );
-  }
-
-  private post(endpoint: string, data: any) {
-    return fetch(SIGNALING_SERVER_ENPIONT + endpoint, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        [PEER_ID_HEADER]: this.peerId,
-      },
-      body: JSON.stringify(data),
-    });
   }
 }

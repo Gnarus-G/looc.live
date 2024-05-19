@@ -1,23 +1,16 @@
-interface Peer {
+export interface Peer {
   id: string;
   userName: string;
+  polite?: boolean;
   notify<T>(notification: PeerNotification<T>): void;
 }
 
 export type PeerDTO = Omit<Peer, "notify">;
 
 interface PeerNotification<T> {
-  type:
-    | "offer"
-    | "answer"
-    | "offerCandidate"
-    | "answerCandidate"
-    | "peerConnected"
-    | "peerDisconnected";
-  data: {
-    fromPeer: PeerDTO;
-    payload: T;
-  };
+  fromPeer: PeerDTO;
+  type: "description" | "candidate" | "peer-connected" | "peer-disconnected";
+  data: T;
 }
 
 export default class Peers {
