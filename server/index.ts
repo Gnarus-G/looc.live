@@ -2,7 +2,7 @@ import cors from "cors";
 import e, { ErrorRequestHandler } from "express";
 import { ZodError } from "zod";
 import { PeerId, ClientRequest } from "./schema";
-import Peers, { Peer, WebSocketPeer } from "./peers";
+import Peers, { WebSocketPeer } from "./peers";
 import ws from "ws";
 import cuid from "cuid";
 
@@ -69,11 +69,6 @@ wsServer.on("connection", (socket) => {
   const localSendingPeer = new WebSocketPeer(cuid(), socket);
   const removePeer = peers.add(localSendingPeer);
 
-  peers.notifyAll({
-    type: "peer-connected",
-    fromPeer: localSendingPeer,
-  });
-
   localSendingPeer.notify({
     type: "assign-id",
     ...localSendingPeer.toJSON(),
@@ -84,9 +79,15 @@ wsServer.on("connection", (socket) => {
     switch (m.type) {
       case "introduction": {
         localSendingPeer.userName = m.userName;
+
         localSendingPeer.notify({
           type: "update-self",
           data: localSendingPeer.toJSON(),
+        });
+
+        peers.notifyAll({
+          type: "peer-connected",
+          fromPeer: localSendingPeer,
         });
         break;
       }
@@ -112,24 +113,12 @@ wsServer.on("connection", (socket) => {
 
       case "description": {
         const toPeer = peers.get(m.sendTo);
-        if (!toPeer) {
-          throw new Error("No such peer by id");
-        }
-
         console.log(
           "received description for",
           toPeer.toJSON(),
           "from",
           localSendingPeer.toJSON()
         );
-
-        // setting the offerer or first sender as the polite one.
-        if (m.data.type === "offer") {
-          /* localSenderIsPolite = politeness.get(localSendingPeer.id, toPeer.id); */
-          /* localSendingPeer.polite = true; */
-          /* toPeer.polite = false; */
-          /* console.log("localSendingPeer is polite", localSenderIsPolite); */
-        }
 
         toPeer.notify({
           type: "description",
@@ -141,9 +130,6 @@ wsServer.on("connection", (socket) => {
 
       case "candidate": {
         const toPeer = peers.get(m.sendTo);
-        if (!toPeer) {
-          throw new Error("No such peer by id");
-        }
         toPeer.notify({
           type: m.type,
           data: m.data,
