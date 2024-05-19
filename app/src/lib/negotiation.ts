@@ -77,6 +77,7 @@ export class Negotiation {
           makingOffer,
           descriptionType: description.type,
           signalingState: this.pc.signalingState,
+          polite,
         });
 
         ignoreOffer = !polite && offerCollision;
