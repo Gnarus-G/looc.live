@@ -7,23 +7,29 @@ export class Negotiation {
   pc: RTCPeerConnection;
 
   constructor(public signaling: RTCSignalingServer) {
-    this.pc = new RTCPeerConnection({
-      iceServers: [
-        {
-          urls: [
-            "stun:stun1.l.google.com:19302",
-            "stun:stun2.l.google.com:19302",
-          ],
-        },
-      ],
-      iceCandidatePoolSize: 10,
-    });
+    this.pc = new RTCPeerConnection();
 
-    this.pc.oniceconnectionstatechange = () => {
-      if (this.pc.iceConnectionState === "failed") {
-        this.pc.restartIce();
-      }
-    };
+    stunServers().then((servers) => {
+      const urls = [
+        "stun:stun1.l.google.com:19302",
+        "stun:stun2.l.google.com:19302",
+      ].concat(servers);
+
+      console.log("initializing an RTC connection with stun servers", {
+        servers: urls,
+      });
+
+      this.pc = new RTCPeerConnection({
+        iceServers: [{ urls }],
+        iceCandidatePoolSize: 10,
+      });
+
+      this.pc.oniceconnectionstatechange = () => {
+        if (this.pc.iceConnectionState === "failed") {
+          this.pc.restartIce();
+        }
+      };
+    });
   }
 
   setRemoteStream(remoteStream: Stream) {
@@ -124,4 +130,17 @@ export class Negotiation {
   end() {
     this.pc.close();
   }
+}
+
+// Courtesy of https://github.com/pradt2/always-online-stun?tab=readme-ov-file
+async function stunServers() {
+  const VALID_HOSTS =
+    "https://raw.githubusercontent.com/pradt2/always-online-stun/master/valid_hosts.txt";
+
+  const addrs = (await (await fetch(VALID_HOSTS)).text())
+    .trim()
+    .split("\n")
+    .map((url) => `stun:${url}`);
+
+  return addrs;
 }
