@@ -14,14 +14,7 @@
   let remotePeer: PeerDTO;
 
   onMount(() => {
-    /* negotiation.pc.oniceconnectionstatechange = () => { */
-    /*   console.log("connection state", negotiation.pc.iceConnectionState); */
-    /*   connected = ["connected", "completed", "closed"].includes( */
-    /*     negotiation.pc.iceConnectionState, */
-    /*   ); */
-    /* }; */
-
-    signaling.ondescription(async (_, fromPeer) => {
+    signaling.oncall((fromPeer) => {
       if (window.confirm(`Answer call from ${fromPeer.userName}?`)) {
         remotePeer = fromPeer;
         negotiation.prepare(remotePeer);
@@ -30,6 +23,10 @@
   });
 
   onMount(() => {
+    signaling.onLocalPeerUpdated((p) => {
+      userName = p.userName;
+      peers = signaling.peers();
+    });
     signaling.onPeerConnected(() => {
       peers = signaling.peers();
     });
@@ -42,6 +39,7 @@
   async function call(peer: PeerDTO) {
     remotePeer = peer;
     negotiation.prepare(remotePeer);
+    signaling.call(peer);
   }
 </script>
 

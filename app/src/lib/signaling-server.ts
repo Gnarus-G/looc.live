@@ -12,16 +12,18 @@ export default class RTCSignalingServer {
 
   private ws: WebSocket;
 
+  private callReceivedListener?: (caller: PeerDTO) => void;
   private descriptionListener?: (
     e: RTCSessionDescriptionInit,
     from: PeerDTO,
     localPeerPolite: boolean
   ) => void;
   private iceCandidateListener?: (e: RTCIceCandidate) => void;
+  private localPeerUpdated?: (p: PeerDTO) => void;
   private peerConnectedListener?: (p: PeerDTO) => void;
   private peerDisconnectedListener?: (p: PeerDTO) => void;
 
-  constructor(userName: string) {
+  constructor(public localUserName: string) {
     const url = new URL(SIGNALING_SERVER_ENPIONT + "/ws");
     url.protocol = import.meta.env.PROD ? "wss" : "ws";
     this.ws = new WebSocket(url);
@@ -34,7 +36,7 @@ export default class RTCSignalingServer {
       this.ws.send(
         JSON.stringify({
           type: "introduction",
-          userName,
+          userName: localUserName,
         })
       );
     };
@@ -44,15 +46,25 @@ export default class RTCSignalingServer {
       const message = ServerMessage.parse(JSON.parse(m.data));
 
       switch (message.type) {
-        case "introduction":
+        case "assign-id":
           console.log("received local peer id", message);
           this.localPeerId = message.id;
+          break;
+        case "update-self":
+          console.log("received local peer data for update", message);
+          this.localPeerId = message.data.id;
+          this.localUserName = message.data.id;
+          this.localIsPolite = message.data.polite;
+          this.localPeerUpdated?.(message.data);
+          break;
+        case "call":
+          this.callReceivedListener?.(message.caller);
           break;
         case "description":
           this.descriptionListener?.(
             message.data,
             message.fromPeer,
-            message.polite
+            !message.fromPeer.polite
           );
           break;
         case "candidate":
@@ -72,7 +84,17 @@ export default class RTCSignalingServer {
     };
   }
 
-  async sendDescription(data: RTCSessionDescription, to: Peer) {
+  call(to: Peer) {
+    console.info("sending a call", { to });
+    this.ws.send(
+      JSON.stringify({
+        type: "call",
+        callee: to,
+      })
+    );
+  }
+
+  sendDescription(data: RTCSessionDescription, to: Peer) {
     console.info("sending description", data);
     this.ws.send(
       JSON.stringify({
@@ -83,7 +105,7 @@ export default class RTCSignalingServer {
     );
   }
 
-  async sendCandidate(data: RTCIceCandidate, to: Peer) {
+  sendCandidate(data: RTCIceCandidate, to: Peer) {
     console.info("sending candidate", data);
     this.ws.send(
       JSON.stringify({
@@ -92,6 +114,13 @@ export default class RTCSignalingServer {
         sendTo: to.id,
       })
     );
+  }
+
+  oncall(listener: (caller: PeerDTO) => void) {
+    this.callReceivedListener = (caller) => {
+      console.log("receiving call from", caller);
+      return listener(caller);
+    };
   }
 
   ondescription(
@@ -130,12 +159,22 @@ export default class RTCSignalingServer {
         }, 0);
       });
     }
+
+    console.log("fetching peers list");
+
     const r = await fetch(SIGNALING_SERVER_ENPIONT + "/peers", {
       headers: {
         [PEER_ID_HEADER]: this.localPeerId!,
       },
     });
     return await r.json();
+  }
+
+  onLocalPeerUpdated(listener: (peer: Peer) => void) {
+    this.localPeerUpdated = (peer) => {
+      console.info("local peer updated up", peer);
+      listener(peer);
+    };
   }
 
   onPeerConnected(listener: (peer: Peer) => void) {

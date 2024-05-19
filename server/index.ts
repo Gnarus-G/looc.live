@@ -2,10 +2,9 @@ import cors from "cors";
 import e, { ErrorRequestHandler } from "express";
 import { ZodError } from "zod";
 import { PeerId, ClientRequest } from "./schema";
-import Peers, { Peer } from "./peers";
+import Peers, { Peer, WebSocketPeer } from "./peers";
 import ws from "ws";
 import cuid from "cuid";
-import { Politeness } from "./Politeness";
 
 const PEER_ID_HEADER = "X-Peer-ID";
 
@@ -66,42 +65,47 @@ server.on("upgrade", (request, socket, head) => {
   }
 });
 
-const politeness = new Politeness();
-
 wsServer.on("connection", (socket) => {
-  let localSendingPeer: Peer;
-  let removePeer: VoidFunction;
+  const localSendingPeer = new WebSocketPeer(cuid(), socket);
+  const removePeer = peers.add(localSendingPeer);
+
+  peers.notifyAll({
+    type: "peer-connected",
+    fromPeer: localSendingPeer,
+  });
+
+  localSendingPeer.notify({
+    type: "assign-id",
+    ...localSendingPeer.toJSON(),
+  });
 
   socket.on("message", (message) => {
     const m = ClientRequest.parse(JSON.parse(message.toString()));
     switch (m.type) {
       case "introduction": {
-        const peer = {
-          id: cuid(),
-          userName: m.userName,
-        };
+        localSendingPeer.userName = m.userName;
+        localSendingPeer.notify({
+          type: "update-self",
+          data: localSendingPeer.toJSON(),
+        });
+        break;
+      }
 
-        localSendingPeer = {
-          ...peer,
-          notify(notification) {
-            socket.send(JSON.stringify(notification));
-          },
-        };
+      case "call": {
+        localSendingPeer.polite = true;
 
-        peers.notifyAll({
-          type: "peer-connected",
-          fromPeer: localSendingPeer,
-          data: null,
+        localSendingPeer.notify({
+          type: "update-self",
+          data: localSendingPeer.toJSON(),
         });
 
-        removePeer = peers.add(localSendingPeer);
+        const callee = peers.get(m.callee.id);
+        callee.polite = false;
 
-        socket.send(
-          JSON.stringify({
-            type: "introduction",
-            ...peer,
-          })
-        );
+        callee.notify({
+          type: "call",
+          caller: localSendingPeer.toJSON(),
+        });
 
         break;
       }
@@ -114,23 +118,23 @@ wsServer.on("connection", (socket) => {
 
         console.log(
           "received description for",
-          toPeer,
+          toPeer.toJSON(),
           "from",
-          localSendingPeer
+          localSendingPeer.toJSON()
         );
 
-        let localSenderIsPolite = false;
         // setting the offerer or first sender as the polite one.
         if (m.data.type === "offer") {
-          localSenderIsPolite = politeness.get(localSendingPeer.id, toPeer.id);
-          console.log("localSendingPeer is polite", localSenderIsPolite);
+          /* localSenderIsPolite = politeness.get(localSendingPeer.id, toPeer.id); */
+          /* localSendingPeer.polite = true; */
+          /* toPeer.polite = false; */
+          /* console.log("localSendingPeer is polite", localSenderIsPolite); */
         }
 
         toPeer.notify({
           type: "description",
           fromPeer: localSendingPeer,
           data: m.data,
-          polite: !localSenderIsPolite,
         });
         break;
       }
@@ -142,7 +146,6 @@ wsServer.on("connection", (socket) => {
         }
         toPeer.notify({
           type: m.type,
-          fromPeer: localSendingPeer,
           data: m.data,
         });
         break;
@@ -156,7 +159,6 @@ wsServer.on("connection", (socket) => {
     peers.notifyAll({
       type: "peer-disconnected",
       fromPeer: localSendingPeer,
-      data: null,
     });
 
     console.info("ws closed", {

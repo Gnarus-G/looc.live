@@ -1,17 +1,18 @@
-export interface Peer {
+import { WebSocket } from "ws";
+import { ServerMessageDTO } from "./schema";
+
+export type PeerDTO = {
   id: string;
   userName: string;
-  notify<T>(notification: PeerNotification<T>): void;
+  polite: boolean;
+};
+
+export interface Peer extends PeerDTO {
+  notify(notification: PeerNotification): void;
+  toJSON(): object;
 }
 
-export type PeerDTO = Omit<Peer, "notify">;
-
-interface PeerNotification<T> {
-  fromPeer: PeerDTO;
-  type: "description" | "candidate" | "peer-connected" | "peer-disconnected";
-  data: T;
-  polite?: boolean;
-}
+type PeerNotification = ServerMessageDTO;
 
 export default class Peers {
   peerMap = new Map<Peer["id"], Peer>();
@@ -26,10 +27,14 @@ export default class Peers {
   }
 
   get(peerId: string) {
-    return this.peerMap.get(peerId);
+    const peer = this.peerMap.get(peerId);
+    if (!peer) {
+      throw new Error("No such peer by id");
+    }
+    return peer;
   }
 
-  notifyAll<T>(note: PeerNotification<T>) {
+  notifyAll(note: PeerNotification) {
     this.peerMap.forEach((p) => {
       p.notify(note);
     });
@@ -37,5 +42,30 @@ export default class Peers {
 
   toArray() {
     return Array.from(this.peerMap.values());
+  }
+}
+
+/* let p = 1; */
+
+export class WebSocketPeer implements Peer {
+  polite: boolean = false;
+  userName: string = "<anonymous>";
+
+  constructor(public id: string, private socket: WebSocket) {}
+
+  notify(notification: PeerNotification) {
+    this.socket.send(JSON.stringify(notification));
+  }
+
+  toString() {
+    return JSON.stringify(this.toJSON());
+  }
+
+  toJSON(): PeerDTO {
+    return {
+      id: this.id,
+      userName: this.userName,
+      polite: this.polite,
+    };
   }
 }

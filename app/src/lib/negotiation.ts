@@ -111,6 +111,16 @@ export class Negotiation {
     });
   }
 
+  onconnectionstate(listener: (connected: boolean) => void) {
+    this.pc.oniceconnectionstatechange = () => {
+      console.log("connection state", this.pc.iceConnectionState);
+      const c = ["connected", "completed", "closed"].includes(
+        this.pc.iceConnectionState
+      );
+      listener(c);
+    };
+  }
+
   end() {
     this.pc.close();
   }

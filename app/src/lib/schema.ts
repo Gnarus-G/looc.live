@@ -10,22 +10,29 @@ const sdpSchema = z.object({
 export const Peer = z.object({
   id: PeerId,
   userName: z.string().min(1),
-  polite: z.boolean().optional(),
+  polite: z.boolean(),
 });
 
 export type PeerDTO = z.infer<typeof Peer>;
 
 export const ServerMessage = z.union([
   z.object({
-    type: z.literal("introduction"),
+    type: z.literal("assign-id"),
     id: PeerId,
     userName: z.string().min(1),
+  }),
+  z.object({
+    type: z.literal("update-self"),
+    data: Peer,
+  }),
+  z.object({
+    type: z.literal("call"),
+    caller: Peer,
   }),
   z.object({
     type: z.literal("description"),
     data: sdpSchema,
     fromPeer: Peer,
-    polite: z.boolean(),
   }),
   z.object({
     type: z.literal("candidate"),
