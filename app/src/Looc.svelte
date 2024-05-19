@@ -55,9 +55,11 @@
       <p class="mx-auto text-xl text-blue-200 animate-pulse">Loading...</p>
     {:then peers}
       {#if peers.data.length === 0}
-        <h2 class="font-semibold text-slate-100">No peers online, currently</h2>
+        <h2 class="font-semibold text-slate-100 text-center">
+          No peers online, currently
+        </h2>
       {:else}
-        <h2 class="font-semibold text-lg text-slate-100">
+        <h2 class="font-semibold text-lg text-slate-100 text-center">
           Peers currently online:
         </h2>
       {/if}
