@@ -26,9 +26,12 @@ app.use(e.json());
 
 app.get("/peers", (req, res) => {
   const peerId = PeerId.parse(req.get(PEER_ID_HEADER));
+  const _peers = peers.toArray().filter((p) => p.id !== peerId);
+
+  console.debug("serving %s peers for peerId %s", _peers.length, peerId);
 
   res.json({
-    data: peers.toArray().filter((p) => p.id !== peerId),
+    data: _peers,
   });
 });
 

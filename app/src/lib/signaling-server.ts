@@ -7,7 +7,7 @@ type Peer = PeerDTO;
 const PEER_ID_HEADER = "X-Peer-ID";
 
 export default class RTCSignalingServer {
-  localPeerId = "";
+  localPeerId: string | null = null;
   localIsPolite = false;
 
   private ws: WebSocket;
@@ -45,6 +45,7 @@ export default class RTCSignalingServer {
 
       switch (message.type) {
         case "introduction":
+          console.log("received local peer id", message);
           this.localPeerId = message.id;
           break;
         case "description":
@@ -121,14 +122,17 @@ export default class RTCSignalingServer {
   }
 
   async peers(): Promise<{ data: Array<Peer> }> {
-    if (!this.localPeerId)
-      return {
-        data: [],
-      };
-
+    if (!this.localPeerId) {
+      return new Promise((res, rej) => {
+        setTimeout(() => {
+          const peers = this.peers().catch(rej);
+          res(peers as any);
+        }, 0);
+      });
+    }
     const r = await fetch(SIGNALING_SERVER_ENPIONT + "/peers", {
       headers: {
-        [PEER_ID_HEADER]: this.localPeerId,
+        [PEER_ID_HEADER]: this.localPeerId!,
       },
     });
     return await r.json();

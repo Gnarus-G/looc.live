@@ -20,6 +20,7 @@ export default class Peers {
     this.peerMap.set(peer.id, peer);
     console.log("peers", this);
     return () => {
+      console.log("removing peer", peer.userName, "id", peer.id);
       this.peerMap.delete(peer.id);
     };
   }
