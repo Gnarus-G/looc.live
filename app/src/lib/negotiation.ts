@@ -18,6 +18,12 @@ export class Negotiation {
       ],
       iceCandidatePoolSize: 10,
     });
+
+    this.pc.oniceconnectionstatechange = () => {
+      if (this.pc.iceConnectionState === "failed") {
+        this.pc.restartIce();
+      }
+    };
   }
 
   setRemoteStream(remoteStream: Stream) {
@@ -61,15 +67,21 @@ export class Negotiation {
     // Handling incoming messages on the signaling channel
     let ignoreOffer = false;
 
-    this.signaling.ondescription(async (description, fromPeer) => {
+    this.signaling.ondescription(async (description, fromPeer, polite) => {
       try {
         const offerCollision =
           description.type === "offer" &&
           (makingOffer || this.pc.signalingState !== "stable");
 
-        const polite = !toPeer.polite;
+        console.log("current receiving state", {
+          makingOffer,
+          descriptionType: description.type,
+          signalingState: this.pc.signalingState,
+        });
+
         ignoreOffer = !polite && offerCollision;
         if (ignoreOffer) {
+          console.log("ignoring offer");
           return;
         }
 

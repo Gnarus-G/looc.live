@@ -25,6 +25,7 @@ export const ServerMessage = z.union([
     type: z.literal("description"),
     data: sdpSchema,
     fromPeer: Peer,
+    polite: z.boolean(),
   }),
   z.object({
     type: z.literal("candidate"),

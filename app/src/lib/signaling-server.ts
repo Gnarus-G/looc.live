@@ -14,7 +14,8 @@ export default class RTCSignalingServer {
 
   private descriptionListener?: (
     e: RTCSessionDescriptionInit,
-    from: PeerDTO
+    from: PeerDTO,
+    localPeerPolite: boolean
   ) => void;
   private iceCandidateListener?: (e: RTCIceCandidate) => void;
   private peerConnectedListener?: (p: PeerDTO) => void;
@@ -47,7 +48,11 @@ export default class RTCSignalingServer {
           this.localPeerId = message.id;
           break;
         case "description":
-          this.descriptionListener?.(message.data, message.fromPeer);
+          this.descriptionListener?.(
+            message.data,
+            message.fromPeer,
+            message.polite
+          );
           break;
         case "candidate":
           this.iceCandidateListener?.(message.data as any);
@@ -89,12 +94,21 @@ export default class RTCSignalingServer {
   }
 
   ondescription(
-    listener: (desc: RTCSessionDescription, from: Peer) => Promise<void> | void
+    listener: (
+      desc: RTCSessionDescription,
+      from: Peer,
+      polite: boolean
+    ) => Promise<void> | void
   ) {
-    this.descriptionListener = (desc, from: Peer) => {
+    this.descriptionListener = (desc, from, polite) => {
       const sdp = new RTCSessionDescription(desc);
-      console.info("recieved description", desc);
-      return listener(sdp, from);
+      console.info(
+        "recieved description",
+        desc,
+        "with local peer as polite",
+        polite
+      );
+      return listener(sdp, from, polite);
     };
   }
 

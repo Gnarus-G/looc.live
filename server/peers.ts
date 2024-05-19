@@ -1,7 +1,6 @@
 export interface Peer {
   id: string;
   userName: string;
-  polite?: boolean;
   notify<T>(notification: PeerNotification<T>): void;
 }
 
@@ -11,6 +10,7 @@ interface PeerNotification<T> {
   fromPeer: PeerDTO;
   type: "description" | "candidate" | "peer-connected" | "peer-disconnected";
   data: T;
+  polite?: boolean;
 }
 
 export default class Peers {

@@ -5,6 +5,7 @@ import { PeerId, ClientRequest } from "./schema";
 import Peers, { Peer } from "./peers";
 import ws from "ws";
 import cuid from "cuid";
+import { Politeness } from "./Politeness";
 
 const PEER_ID_HEADER = "X-Peer-ID";
 
@@ -62,8 +63,10 @@ server.on("upgrade", (request, socket, head) => {
   }
 });
 
+const politeness = new Politeness();
+
 wsServer.on("connection", (socket) => {
-  let localPeer: Peer;
+  let localSendingPeer: Peer;
   let removePeer: VoidFunction;
 
   socket.on("message", (message) => {
@@ -75,25 +78,20 @@ wsServer.on("connection", (socket) => {
           userName: m.userName,
         };
 
-        localPeer = {
+        localSendingPeer = {
           ...peer,
           notify(notification) {
-            socket.send(
-              JSON.stringify({
-                ...notification,
-                toPeer: peer.id,
-              })
-            );
+            socket.send(JSON.stringify(notification));
           },
         };
 
         peers.notifyAll({
           type: "peer-connected",
-          fromPeer: localPeer,
+          fromPeer: localSendingPeer,
           data: null,
         });
 
-        removePeer = peers.add(localPeer);
+        removePeer = peers.add(localSendingPeer);
 
         socket.send(
           JSON.stringify({
@@ -105,7 +103,35 @@ wsServer.on("connection", (socket) => {
         break;
       }
 
-      case "description":
+      case "description": {
+        const toPeer = peers.get(m.sendTo);
+        if (!toPeer) {
+          throw new Error("No such peer by id");
+        }
+
+        console.log(
+          "received description for",
+          toPeer,
+          "from",
+          localSendingPeer
+        );
+
+        let localSenderIsPolite = false;
+        // setting the offerer or first sender as the polite one.
+        if (m.data.type === "offer") {
+          localSenderIsPolite = politeness.get(localSendingPeer.id, toPeer.id);
+          console.log("localSendingPeer is polite", localSenderIsPolite);
+        }
+
+        toPeer.notify({
+          type: "description",
+          fromPeer: localSendingPeer,
+          data: m.data,
+          polite: !localSenderIsPolite,
+        });
+        break;
+      }
+
       case "candidate": {
         const toPeer = peers.get(m.sendTo);
         if (!toPeer) {
@@ -113,7 +139,7 @@ wsServer.on("connection", (socket) => {
         }
         toPeer.notify({
           type: m.type,
-          fromPeer: localPeer,
+          fromPeer: localSendingPeer,
           data: m.data,
         });
         break;
@@ -126,7 +152,7 @@ wsServer.on("connection", (socket) => {
 
     peers.notifyAll({
       type: "peer-disconnected",
-      fromPeer: localPeer,
+      fromPeer: localSendingPeer,
       data: null,
     });
 
